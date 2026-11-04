@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>XY Plot Digitizer - BCLC FAST</title>
+  <!-- External Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    // กันพังเมื่อโหลด pdf.js ไม่สำเร็จ (เน็ตหลุด/ไฟร์วอลล์บล็อก)
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
+  <!-- SheetJS: เลือกใช้รุ่นที่แก้ช่องโหว่ CVE-2023-30533 แล้ว (0.18.5 บน cdnjs เป็นรุ่นเก่าที่มีปัญหา)
+       ถ้าโหลดรุ่นใหม่ไม่ได้ จะถอยไปใช้รุ่นเดิมบน cdnjs อัตโนมัติ เพื่อไม่ให้ฟีเจอร์ Excel หายไป -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"
+          onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';document.head.appendChild(s);"></script>
+  <!-- Google Font Sarabun & Libraries for Section 3 (งานดิน) -->
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    window.tailwind = { config: { corePlugins: { preflight: false } } };
+  </script>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css?v=20261104a">
+</head>
+<body>
+
+  <!-- รอบ 46: ลบแถบหัวด้านบนสุดออก และย้ายชื่อโครงการ/ที่อยู่ + ระบบเชฟอัตโนมัติลงมาไว้ในแถบบนของส่วนถอดแบบ -->
+  <div class="app-shell">
+
+  <div class="main-container">
+    
+    <!-- แถบเมนูซ้ายแนวตั้ง -->
+    <div class="sidebar-left" id="sidebarLeft">
+      <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="ย่อ/ขยายแถบเมนู">◀</button>
+
+      <div class="logo-container">
+        <img src="https://i.ibb.co/0j0q918k/Screenshot-2026-09-17-125709.png" alt="BCLC FAST" class="logo-img">
+        <div class="org-title">สำนักงานจัดรูปที่ดินกลาง</div>
+      </div>
+
+      <div class="nav-menu-list">
+        <a class="nav-item" onclick="switchMainMenu('map', this)">
+          <span class="nav-icon">🗺️</span>
+          <span class="nav-text">แผนที่ระบบงาน</span>
+        </a>
+        <a class="nav-item" onclick="switchMainMenu('project', this)">
+          <span class="nav-icon">📋</span>
+          <span class="nav-text">แผนงานโครงการ</span>
+        </a>
+        <a class="nav-item active" onclick="switchMainMenu('estimate', this)">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">ประมาณการ</span>
+        </a>
+        
+        <!-- เมนูย่อยของประมาณการ -->
+        <div class="sub-menu-list" id="subEstimateMenu">
+          <div class="sub-nav-item active" onclick="switchSubMenu('takeoff', this)" title="ส่วนถอดแบบ">
+            <span class="sub-nav-icon">✏️</span>
+            <span class="sub-nav-text">ส่วนถอดแบบ</span>
+          </div>
+          <div class="sub-nav-item" onclick="switchSubMenu('quantity', this)" title="ส่วนคำนวณปริมาณ">
+            <span class="sub-nav-icon">📐</span>
+            <span class="sub-nav-text">ส่วนคำนวณปริมาณ</span>
+          </div>
+          <div class="sub-nav-item" onclick="switchSubMenu('structure-calc', this)" title="ส่วนอาคารประกอบ">
+            <span class="sub-nav-icon">🏛️</span>
+            <span class="sub-nav-text">ส่วนอาคารประกอบ</span>
+          </div>
+          <div class="sub-nav-item" onclick="switchSubMenu('pricing', this)" title="ส่วนราคาวัสดุ">
+            <span class="sub-nav-icon">🏷️</span>
+            <span class="sub-nav-text">ส่วนราคาวัสดุ</span>
+          </div>
+          <div class="sub-nav-item" onclick="switchSubMenu('report', this)" title="พิมพ์รายงาน">
+            <span class="sub-nav-icon">🖨️</span>
+            <span class="sub-nav-text">พิมพ์รายงาน</span>
+          </div>
+        </div>
+
+        <a class="nav-item" onclick="switchMainMenu('procurement', this)">
+          <span class="nav-icon">🛒</span>
+          <span class="nav-text">แผนจัดซื้อจัดจ้าง</span>
+        </a>
+        <a class="nav-item" onclick="switchMainMenu('billing', this)">
+          <span class="nav-icon">💰</span>
+          <span class="nav-text">ส่วนเรียกเก็บค่าใช้จ่าย</span>
+        </a>
+        <a class="nav-item" onclick="switchMainMenu('setting', this)">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-text">Setting</span>
+        </a>
+      </div>
+
+      <div class="developer-tab" id="devBadge">
+        <div class="dev-badge-line1">💻 พัฒนาโดย สจจ.2</div>
+        <div class="dev-badge-version" id="devBadgeVersion">Version 1.0003</div>
+      </div>
+    </div>
+
+    <!-- หน้าว่างสำหรับเมนูอื่นที่ยังไม่ได้พัฒนา -->
+    <div class="blank-page-view" id="blankPageView">
+      <h2 id="blankPageTitle" style="color: #495057;">หน้าว่าง</h2>
+      <p style="font-size: 0.9em;">(ส่วนนี้อยู่ในระหว่างการพัฒนา)</p>
+      <button class="btn-action" style="background-color: #007bff; margin-top: 10px;" onclick="returnToTakeoff()">กลับสู่ ส่วนถอดแบบ</button>
+    </div>
+
+    <!-- หน้าสรุป "ประมาณการ" (แสดงในแท็บของตัวเอง ไม่ทับ canvas) -->
+    <div class="estimate-summary-page" id="estimateSummaryPage" style="display: none;">
+      <!-- เนื้อหาจะถูก render โดย renderEstimateSummaryPage() -->
+    </div>
+
+    <!-- หน้า "แผนงานโครงการ" (เมนูซ้าย) — แสดงฟอร์มข้อมูลโครงการ -->
+    <div class="estimate-summary-page" id="projectPlanPage" style="display: none;">
+      <!-- เนื้อหาจะถูก render โดย renderProjectPlanPage() -->
+    </div>
+
+    <!-- รอบ 59: หน้าเมนูย่อย "ส่วนคำนวณปริมาณ" พร้อมแท็บ "งานดิน" และนำหลักส่วนที่ 3 ของไฟล์ที่แนบ + ค่าจากส่วนถอดแบบมาใส่ -->
+    <div class="structure-calc-page quantity-calc-page" id="quantityCalcPage" style="display: none;">
+      <div class="structure-calc-top-bar">
+        <div class="structure-calc-page-title">
+          <span>📐 ส่วนคำนวณปริมาณ</span>
+          <span class="structure-calc-page-sub" id="quantityCalcActiveTabTitle">⛰️ งานดิน</span>
+        </div>
+        <div class="structure-calc-top-actions">
+          <button type="button" class="btn-action" id="btnSyncEarthworkFromTakeoffTop" style="background-color: #059669;" onclick="syncEarthworkFromTakeoff(true)" title="ดึงค่าจากส่วนถอดแบบมาคำนวณในแท็บงานดิน">🔄 ดึงค่าจากส่วนถอดแบบ</button>
+          <button type="button" class="btn-action" style="background-color: #6c757d;" onclick="copyTableData()">📋 Copy</button>
+          <button type="button" class="btn-action" style="background-color: #007bff;" onclick="returnToTakeoff()">กลับสู่ ส่วนถอดแบบ</button>
+        </div>
+      </div>
+      <div class="structure-calc-body">
+        <div class="structure-calc-sidebar" id="quantityCalcSidebar">
+          <div class="structure-calc-sidebar-header">
+            <span class="structure-calc-sidebar-title">รายการคำนวณปริมาณ</span>
+            <button type="button" class="structure-calc-collapse-btn" id="btnToggleQuantityCalcSidebar" onclick="toggleQuantityCalcSidebar(event)" title="ย่อ/ขยายเมนูแท็บซ้ายมือ">◀</button>
+          </div>
+          <div class="structure-calc-tabs-list" id="quantityCalcTabsList">
+            <button type="button" class="struct-calc-tab-btn active" id="qty-calc-tab-earthwork" onclick="switchQuantityCalcTab('earthwork')" title="งานดิน">
+              <span class="struct-calc-tab-icon">⛰️</span>
+              <span class="struct-calc-tab-text">งานดิน</span>
+            </button>
+          </div>
+        </div>
+        <div class="structure-calc-main quantity-calc-main" id="quantityCalcMain">
+          <div class="quantity-calc-earthwork-scroll custom-scrollbar" id="quantityCalcEarthworkContainer">
+        <!-- ========================================================================= -->
+        <!-- MODULE 3: EXTERNAL DATA BOQ TABLE & 2 CROSS-SECTIONS COMPARISON           -->
+        <!-- ========================================================================= -->
+        <section id="sectionExternalData" class="w-full bg-slate-800/40 rounded-2xl border border-slate-700/70 p-3.5 sm:p-5 space-y-5 shadow-2xl">
+            <!-- Section Header & File Controls -->
+            <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b border-slate-700/80 pb-3.5">
+                <div class="flex items-start gap-3">
+                    <div class="flex flex-col items-stretch gap-1.5 shrink-0">
+                        <span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 text-xs font-bold text-center">ส่วนที่ 3 • ตาราง BoQ & เปรียบเทียบรูปตัด</span>
+                        <button id="btnToggleBoqCollapse" class="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-[11px] font-semibold text-slate-200 border border-slate-600 transition flex items-center justify-center gap-1">
+                            <span>ย่อ / ขยายส่วนที่ 3</span>
+                        </button>
+                    </div>
+                    <div>
+                        <h2 class="text-sm sm:text-base font-bold text-white">
+                            คำนวณพื้นที่และปริมาณงานตามช่วง กม. (รับค่า NGL จาก Digitizer หรือไฟล์ Excel)
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-0.5">
+                            แสดงการเปรียบเทียบ 2 รูปตัดขวาง (<strong class="text-cyan-300">กม.เริ่มต้น A1</strong> และ <strong class="text-amber-300">กม.สิ้นสุด A2</strong>) • คำนวณปริมาณงานด้วยสูตร <code class="text-emerald-300 bg-slate-900 px-1.5 py-0.5 rounded">(A1 + A2) × 0.5 × L</code> แยกครบทุกหมวดงาน • ใช้ปุ่มลูกศร <kbd class="px-1.5 py-0.5 bg-slate-700 rounded text-slate-200">↑</kbd> <kbd class="px-1.5 py-0.5 bg-slate-700 rounded text-slate-200">↓</kbd> <kbd class="px-1.5 py-0.5 bg-slate-700 rounded text-slate-200">←</kbd> <kbd class="px-1.5 py-0.5 bg-slate-700 rounded text-slate-200">→</kbd> เลื่อนช่องในตารางได้ทันที
+                        </p>
+                    </div>
+                </div>
+
+                <!-- File Upload / Download Template Buttons (ชิดขอบขวา ความยาวปุ่มเท่ากัน ตามรูป 2) -->
+                <div class="ml-auto shrink-0 self-end xl:self-center flex flex-col items-stretch gap-1.5 w-full sm:w-64">
+                    <button type="button" id="btnPullFromTakeoffSec3" onclick="syncEarthworkFromTakeoff(true)" class="w-full justify-center px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white shadow-lg shadow-indigo-950/50 transition flex items-center gap-1.5" title="ดึงข้อมูลคลองส่งน้ำ คูส่งน้ำ มิติ ระดับคูส่งน้ำ และระดับดินเดิมจากส่วนถอดแบบมาใส่ตารางคำนวณ">
+                        <span>🔄 ดึงค่าจากส่วนถอดแบบ</span>
+                    </button>
+                    <input type="file" id="uploadExcelInput" accept=".xlsx,.xls,.csv" class="hidden">
+                    <button id="btnUploadExcel" class="w-full justify-center px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white shadow-lg shadow-emerald-950/50 transition flex items-center gap-1.5">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        <span>อัปโหลดไฟล์ Excel (.xlsx / .csv)</span>
+                    </button>
+                    <button id="btnDownloadTemplate" class="w-full justify-center px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-xs font-semibold text-white shadow-lg shadow-cyan-950/50 transition flex items-center gap-1.5">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        <span>ดาวน์โหลดไฟล์ตัวอย่าง Excel</span>
+                    </button>
+                    <!-- Preserved hidden elements for DOM/event compatibility -->
+                    <div class="hidden" aria-hidden="true">
+                        <button type="button">ดาวน์โหลดไฟล์ตัวอย่าง</button>
+                        <button type="button">ดาวน์โหลดไฟล์ผลลัพธ์ (.xlsx)</button>
+                        <button type="button">👁️ ซ่อน/แสดงคอลัมน์ A-T</button>
+                        <button id="btnAddRow">เพิ่มแถว</button>
+                        <button id="btnResetSampleRows">รีเซ็ตข้อมูลตัวอย่าง</button>
+                        <span id="badgeNglTabInfo"></span>
+                        <button id="btnUndoAction" disabled><span>↩ ยกเลิก</span></button>
+                        <button id="btnRedoAction" disabled><span>↪ กลับการทำงาน</span></button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="boqSectionBody" class="space-y-5">
+
+            <!-- Status / Notification Banner -->
+            <div id="fileStatusBanner" class="hidden rounded-xl px-4 py-2.5 text-xs font-medium flex items-center justify-between border">
+                <span id="fileStatusText"></span>
+                <button id="btnCloseBanner" class="text-slate-400 hover:text-white ml-4">✕</button>
+            </div>
+
+            <!-- Interactive Longitudinal Profile Preview (NGL vs BL vs TBL across all table stations) -->
+            <div class="bg-slate-950/90 rounded-2xl border border-slate-800 p-3 space-y-1.5 shadow-lg">
+                <div class="flex flex-wrap justify-between items-center gap-2 text-xs">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-slate-200">กราฟโปรไฟล์ตามยาว (Longitudinal Profile: NGL / BL. / TBL.) จากข้อมูลในตาราง:</span>
+                        <span class="text-[11px] text-slate-400">(คลิกที่ช่วง กม. บนกราฟเพื่อเลือกแถวเปรียบเทียบรูปตัดขวางได้ทันที)</span>
+                    </div>
+                    <div class="flex items-center gap-4 text-[11px]">
+                        <span class="flex items-center gap-1 text-emerald-400"><span class="w-3 h-0.5 bg-emerald-400 inline-block"></span> ระดับดินเดิม (NGL)</span>
+                        <span class="flex items-center gap-1 text-sky-400"><span class="w-3 h-0.5 bg-sky-400 inline-block"></span> ระดับท้องคลอง (BL.)</span>
+                        <span class="flex items-center gap-1 text-rose-400"><span class="w-3 h-0.5 bg-rose-400 inline-block"></span> ระดับหลังคลอง (TBL.)</span>
+                    </div>
+                </div>
+                <div class="relative h-40 w-full bg-slate-950 rounded-xl border border-slate-800/80 overflow-hidden">
+                    <canvas id="canvasLongProfile" class="w-full h-full cursor-crosshair block"></canvas>
+                </div>
+                <!-- Interactive Scrubber Slider & Value Indicator under graph per รูป 5 -->
+                <div class="pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 text-xs">
+                    <div class="flex items-center gap-2.5 flex-1 min-w-0">
+                        <span class="text-[11px] font-semibold text-cyan-300 shrink-0 flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"></path></svg>
+                            เลื่อนตรวจสอบ กม.:
+                        </span>
+                        <div class="flex-1 relative flex items-center">
+                            <input type="range" id="profileScrubberSlider" min="0" max="200" step="1" value="0" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-ew-resize accent-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400" title="ลากเลื่อนเพื่อดูค่า กม. และระดับทั้ง 3 ค่า วิ่งตามเส้น">
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <div class="inline-flex items-center gap-2 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-700/80 text-[11px] font-mono shadow-sm">
+                            <span class="text-slate-400">ตำแหน่ง:</span>
+                            <strong id="profileScrubBadgeSta" class="text-cyan-300 font-bold">-</strong>
+                            <span class="text-slate-600">|</span>
+                            <span class="text-emerald-400">NGL: <strong id="profileScrubBadgeNgl">-</strong></span>
+                            <span class="text-slate-600">|</span>
+                            <span class="text-sky-400">BL: <strong id="profileScrubBadgeBl">-</strong></span>
+                            <span class="text-slate-600">|</span>
+                            <span class="text-rose-400">TBL: <strong id="profileScrubBadgeTbl">-</strong></span>
+                        </div>
+                        <button type="button" id="btnSnapProfileToActiveRow" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700 transition" title="เลื่อนตัวเลื่อนไปที่จุดเริ่มต้นของแถวที่กำลังเลือก">
+                            🎯 ตามแถวที่เลือก
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Side-by-Side 2 Cross-Sections Comparison & Active Row Volume Breakdown -->
+            <div class="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
+
+                <!-- Left & Right Comparison Canvases + Shared Display Controls Bar (ตามรูป 3) -->
+                <div class="xl:col-span-8 flex flex-col gap-2">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 items-stretch">
+                        <!-- Left Comparison Canvas: Start Station (กม.เริ่มต้น) -->
+                        <div class="bg-slate-950 rounded-2xl border border-slate-800 flex flex-col overflow-hidden min-h-[390px] relative shadow-xl">
+                            <div class="bg-slate-900/90 border-b border-slate-800 px-3.5 py-2 flex justify-between items-center z-10">
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2 py-0.5 rounded bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 text-xs font-bold">รูปที่ 1 (A1)</span>
+                                    <span id="lblCompareStartTitle" class="text-xs font-semibold text-slate-100">กม.เริ่มต้น: -</span>
+                                </div>
+                                <button id="btnResetCompareStart" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700 transition">
+                                    รีเซ็ตมุมมอง
+                                </button>
+                            </div>
+                            <div id="badgeCompareStartInfo" class="bg-slate-900/60 px-3.5 py-1 text-[11px] text-slate-400 border-b border-slate-800/80 flex flex-wrap justify-between gap-2">
+                                <span>NGL: <strong class="text-slate-500">-</strong></span>
+                                <span>BL.: <strong class="text-slate-500">-</strong></span>
+                                <span>TBL.: <strong class="text-slate-500">-</strong></span>
+                            </div>
+                            <canvas id="canvasCompareStart" class="w-full flex-1 cursor-grab active:cursor-grabbing min-h-[325px]"></canvas>
+                        </div>
+
+                        <!-- Right Comparison Canvas: End Station (กม.สิ้นสุด) -->
+                        <div class="bg-slate-950 rounded-2xl border border-slate-800 flex flex-col overflow-hidden min-h-[390px] relative shadow-xl">
+                            <div class="bg-slate-900/90 border-b border-slate-800 px-3.5 py-2 flex justify-between items-center z-10">
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/50 text-amber-300 text-xs font-bold">รูปที่ 2 (A2)</span>
+                                    <span id="lblCompareEndTitle" class="text-xs font-semibold text-slate-100">กม.สิ้นสุด: -</span>
+                                </div>
+                                <button id="btnResetCompareEnd" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700 transition">
+                                    รีเซ็ตมุมมอง
+                                </button>
+                            </div>
+                            <div id="badgeCompareEndInfo" class="bg-slate-900/60 px-3.5 py-1 text-[11px] text-slate-400 border-b border-slate-800/80 flex flex-wrap justify-between gap-2">
+                                <span>NGL: <strong class="text-slate-500">-</strong></span>
+                                <span>BL.: <strong class="text-slate-500">-</strong></span>
+                                <span>TBL.: <strong class="text-slate-500">-</strong></span>
+                            </div>
+                            <canvas id="canvasCompareEnd" class="w-full flex-1 cursor-grab active:cursor-grabbing min-h-[325px]"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Section 3 Independent Display & Area Color Controls Bar (ใช้ร่วมกันทั้ง 2 รูปในส่วนที่ 3 แยกจากส่วนที่ 1 ตามรูป 3) -->
+                    <div id="cmpDisplayControlsBar" class="shrink-0 bg-slate-900/95 px-2 py-1.5 rounded-xl border border-slate-700/80 flex items-center justify-between gap-1 flex-nowrap overflow-x-auto custom-scrollbar text-xs shadow-lg">
+                        <button type="button" id="btnCmpToggleAreaStripping" class="flex-1 min-w-0 justify-center px-1.5 py-1 rounded-lg bg-amber-950/80 hover:bg-amber-900/80 text-[10.5px] xl:text-[11px] font-semibold text-amber-200 border border-amber-500/60 transition flex items-center gap-1 whitespace-nowrap">
+                            <span id="dotCmpAreaStripping" class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+                            <span id="lblCmpAreaStripping" class="truncate">แสดงขุดลอกหน้าดิน</span>
+                        </button>
+                        <button type="button" id="btnCmpToggleAreaCompacted" class="flex-1 min-w-0 justify-center px-1.5 py-1 rounded-lg bg-teal-950/80 hover:bg-teal-900/80 text-[10.5px] xl:text-[11px] font-semibold text-teal-200 border border-teal-500/60 transition flex items-center gap-1 whitespace-nowrap">
+                            <span id="dotCmpAreaCompacted" class="w-2 h-2 rounded-full bg-teal-400 shrink-0"></span>
+                            <span id="lblCmpAreaCompacted" class="truncate">แสดงดินถมบดอัดแน่น 85%</span>
+                        </button>
+                        <button type="button" id="btnCmpToggleAreaExcavation" class="flex-1 min-w-0 justify-center px-1.5 py-1 rounded-lg bg-orange-950/80 hover:bg-orange-900/80 text-[10.5px] xl:text-[11px] font-semibold text-orange-200 border border-orange-500/60 transition flex items-center gap-1 whitespace-nowrap">
+                            <span id="dotCmpAreaExcavation" class="w-2 h-2 rounded-full bg-orange-400 shrink-0"></span>
+                            <span id="lblCmpAreaExcavation" class="truncate">แสดงดินขุด</span>
+                        </button>
+                        <button type="button" id="btnCmpToggleAreaManualFill" class="flex-1 min-w-0 justify-center px-1.5 py-1 rounded-lg bg-purple-950/80 hover:bg-purple-900/80 text-[10.5px] xl:text-[11px] font-semibold text-purple-200 border border-purple-500/60 transition flex items-center gap-1 whitespace-nowrap">
+                            <span id="dotCmpAreaManualFill" class="w-2 h-2 rounded-full bg-purple-400 shrink-0"></span>
+                            <span id="lblCmpAreaManualFill" class="truncate">แสดงดินถมด้วยแรงคน</span>
+                        </button>
+                        <button type="button" id="btnCmpToggleDims" class="flex-1 min-w-0 justify-center px-1.5 py-1 rounded-lg bg-cyan-950/80 hover:bg-cyan-900/80 text-[10.5px] xl:text-[11px] font-semibold text-cyan-200 border border-cyan-500/60 transition flex items-center gap-1 whitespace-nowrap">
+                            <span id="dotCmpDims" class="w-2 h-2 rounded-full bg-cyan-400 shrink-0"></span>
+                            <span id="lblCmpDims" class="truncate">แสดงมิติโครงสร้าง</span>
+                        </button>
+                        <button type="button" id="btnCmpToggleWidths" class="flex-1 min-w-0 justify-center px-1.5 py-1 rounded-lg bg-pink-950/80 hover:bg-pink-900/80 text-[10.5px] xl:text-[11px] font-semibold text-pink-200 border border-pink-500/60 transition flex items-center gap-1 whitespace-nowrap">
+                            <span id="dotCmpWidths" class="w-2 h-2 rounded-full bg-pink-400 shrink-0"></span>
+                            <span id="lblCmpWidths" class="truncate">แสดงความกว้างขุดลอก/คันดิน</span>
+                        </button>
+                        <button type="button" id="btnCmpResetBothViews" class="shrink-0 w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-cyan-300 border border-slate-600 transition flex items-center justify-center shadow" title="รีเซ็ตมุมมองทั้ง 2 รูปตัดในส่วนที่ 3 และแสดงค่าทั้งหมด">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            <span class="hidden">รีเซ็ตมุมมองรูปตัดเปรียบเทียบ</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Comparison Data Table for Selected Row (A1, A2, L, Volume = (A1+A2)*0.5*L) -->
+                <div class="xl:col-span-4 bg-slate-900/95 rounded-2xl border border-slate-700/80 p-3.5 flex flex-col justify-between shadow-xl">
+                    <div class="space-y-2.5">
+                        <div class="flex flex-wrap justify-between items-center gap-2 border-b border-slate-800 pb-2">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span id="cmpRowBadge" class="px-2 py-0.5 rounded bg-indigo-500/20 border border-indigo-400/50 text-indigo-300 text-xs font-bold">ไม่มีข้อมูล (0 แถว)</span>
+                                    <h3 id="cmpCanalTitle" class="text-xs sm:text-sm font-bold text-white">-</h3>
+                                </div>
+                                <p id="cmpStructSummary" class="text-[11px] text-slate-400 mt-0.5">ยังไม่มีข้อมูลในตาราง</p>
+                            </div>
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <button id="btnPrevRow" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700 transition" title="แถวก่อนหน้า (ลูกศรขึ้น)">◀ ก่อนหน้า</button>
+                                <button id="btnNextRow" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700 transition" title="แถวถัดไป (ลูกศรลง)">ถัดไป ▶</button>
+                                <button type="button" id="btnShowRowCalcSheet" class="px-3 py-1 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-cyan-950/60 border border-cyan-400/40 transition flex items-center gap-1.5 hover:scale-[1.02]" title="แสดงรายการคำนวณเปรียบเทียบทั้ง 2 รูปตัดและคำนวณปริมาณงานสำหรับแถวนี้">
+                                    <svg class="w-4 h-4 text-cyan-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                    <span>แสดงรายการคำนวณ</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Distance L and Formula Banner -->
+                        <div class="grid grid-cols-3 gap-2 bg-slate-800/70 rounded-xl p-2.5 border border-slate-700/60 text-xs">
+                            <div>
+                                <span class="text-[11px] text-slate-400 block">ช่วง กม.เริ่มต้น - สิ้นสุด</span>
+                                <strong id="cmpStaRange" class="text-cyan-300 text-sm">-</strong>
+                            </div>
+                            <div class="text-center border-x border-slate-700/70 px-2">
+                                <span class="text-[11px] text-slate-400 block">ระยะทางระหว่าง กม. (L)</span>
+                                <strong id="cmpLengthL" class="text-emerald-400 text-sm">0.00 m</strong>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-[11px] text-slate-400 block">สูตรการคำนวณปริมาณงาน</span>
+                                <strong class="text-amber-300 text-xs">(A1 + A2) × 0.5 × L</strong>
+                            </div>
+                        </div>
+
+                        <!-- Detailed Comparison Table for the Selected Row -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr class="border-b border-slate-800 text-[11px] text-slate-400">
+                                        <th class="py-1.5 font-medium">หมวดงาน</th>
+                                        <th class="py-1.5 font-medium text-right text-cyan-300">A1 (m²)</th>
+                                        <th class="py-1.5 font-medium text-right text-amber-300">A2 (m²)</th>
+                                        <th class="py-1.5 font-medium text-right text-slate-300">L (m)</th>
+                                        <th class="py-1.5 font-semibold text-right text-emerald-300">ปริมาณ (m³)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cmpBreakdownBody" class="divide-y divide-slate-800/70">
+                                    <!-- Dynamically populated by updateComparisonView() -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 pt-2 border-t border-slate-800 flex justify-between items-center text-[11px] text-slate-400">
+                        <span>ส่งค่าจากแถวนี้ไปดูที่รูปตัดขวางหลัก (ส่วนที่ 1):</span>
+                        <div class="flex gap-1.5">
+                            <button id="btnLoadStartToMain" class="px-2.5 py-1 rounded bg-cyan-950/90 hover:bg-cyan-900 text-cyan-300 border border-cyan-700/60 transition">ดูรูปที่ 1 ในหน้าหลัก</button>
+                            <button id="btnLoadEndToMain" class="px-2.5 py-1 rounded bg-amber-950/90 hover:bg-amber-900 text-amber-300 border border-amber-700/60 transition">ดูรูปที่ 2 ในหน้าหลัก</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interactive Engineering Spreadsheet Table & Controls -->
+            <div class="space-y-3">
+                <!-- Table Controls Header: แถว 1 หัวข้อตาราง | แถว 2 ซ้าย: ปุ่มซ่อนคอลัมน์ + ปุ่มแสดง/ซ่อนแต่ละหมวดงาน | แถว 2 ขวา: ปุ่มแสดงข้อมูลตาราง -->
+                <div class="space-y-2 pt-1 pb-0.5 w-full">
+                    <!-- แถวที่ 1: หัวข้อตาราง -->
+                    <div class="flex items-center justify-between gap-2">
+                        <h3 class="text-sm font-bold text-cyan-300 flex items-center gap-1.5">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                            <span>ตารางข้อมูล พิกัดจุด 14 จุด และผลการคำนวณปริมาณงาน</span>
+                        </h3>
+                    </div>
+
+                    <!-- แถวที่ 2 (แถวเดียวตามรูป 1): ฝั่งซ้ายเรียงปุ่มซ่อนคอลัมน์ + ปุ่มแสดง/ซ่อน 6 หมวดงานหลัก | ฝั่งขวาชิดขอบขวาเป็นปุ่ม แสดงข้อมูลตาราง -->
+                    <div class="flex items-center justify-between gap-1.5 flex-nowrap overflow-x-auto custom-scrollbar w-full bg-slate-900/80 px-2.5 py-1.5 rounded-xl border border-slate-800">
+                        <!-- กลุ่มปุ่มเรียงชิดซ้ายในแถวเดียว -->
+                        <div class="flex items-center gap-1.5 flex-nowrap shrink-0">
+                            <!-- Column Visibility Button (A-U) -->
+                            <button type="button" id="btnToggleColumnVisibility" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-cyan-300 border border-cyan-500/50 font-semibold transition flex items-center gap-1 shadow whitespace-nowrap shrink-0" title="ตั้งค่าซ่อน/แสดงคอลัมน์ A ถึง U">
+                                <svg class="w-3.5 h-3.5 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                <span id="lblColVisibilityBtn">👁️ ซ่อน/แสดงคอลัมน์ A-U</span>
+                            </button>
+
+                            <!-- Toggle 14 Node Coordinates in Table -->
+                            <button type="button" id="btnToggleNodeCoordsCols" class="px-2 py-1 rounded-lg bg-emerald-950/80 hover:bg-emerald-900/80 text-[11px] text-emerald-300 border border-emerald-500/50 font-semibold transition flex items-center gap-1 shadow whitespace-nowrap shrink-0" title="ตัวเลือกซ่อน/แสดงคอลัมน์ จุด 1-14 (กม.เริ่มต้น และ กม.สิ้นสุด)">
+                                <span id="lblToggleNodeCoordsBtn">📍 ซ่อนคอลัมน์ จุด 1-14</span>
+                            </button>
+
+                            <span class="text-slate-700 font-bold px-0.5 shrink-0">|</span>
+
+                            <!-- ปุ่มแสดง/ซ่อน แต่ละหมวดงาน (ลบ 3 ปุ่มที่กากบาทในรูป 1 ออก และเรียงแถวเดียว) -->
+                            <div id="workCategoryToggleButtonsBar" class="flex items-center gap-1 flex-nowrap shrink-0">
+                                <button type="button" data-toggle-work-cat="stripping" class="px-2 py-1 rounded-lg bg-amber-950/80 hover:bg-amber-900 text-[11px] text-amber-200 border border-amber-500/60 font-semibold transition flex items-center gap-1 whitespace-nowrap shrink-0" title="คลิกเพื่อ แสดง/ซ่อน หมวดขุดลอกหน้าดิน">
+                                    <span class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+                                    <span>1. ขุดลอกหน้าดิน</span>
+                                </button>
+                                <button type="button" data-toggle-work-cat="compacted" class="px-2 py-1 rounded-lg bg-teal-950/80 hover:bg-teal-900 text-[11px] text-teal-200 border border-teal-500/60 font-semibold transition flex items-center gap-1 whitespace-nowrap shrink-0" title="คลิกเพื่อ แสดง/ซ่อน หมวดดินถมบดอัด 85%">
+                                    <span class="w-2 h-2 rounded-full bg-teal-400 shrink-0"></span>
+                                    <span>2. ดินถมบดอัด 85%</span>
+                                </button>
+                                <button type="button" data-toggle-work-cat="excavation" class="px-2 py-1 rounded-lg bg-orange-950/80 hover:bg-orange-900 text-[11px] text-orange-200 border border-orange-500/60 font-semibold transition flex items-center gap-1 whitespace-nowrap shrink-0" title="คลิกเพื่อ แสดง/ซ่อน หมวดดินขุด">
+                                    <span class="w-2 h-2 rounded-full bg-orange-400 shrink-0"></span>
+                                    <span>3. ดินขุด</span>
+                                </button>
+                                <button type="button" data-toggle-work-cat="manualTotal" class="px-2 py-1 rounded-lg bg-purple-950/80 hover:bg-purple-900 text-[11px] text-purple-200 border border-purple-500/60 font-semibold transition flex items-center gap-1 whitespace-nowrap shrink-0" title="คลิกเพื่อ แสดง/ซ่อน หมวดรวมดินถมแรงคน">
+                                    <span class="w-2 h-2 rounded-full bg-purple-400 shrink-0"></span>
+                                    <span>6. รวมถมแรงคน</span>
+                                </button>
+                                <button type="button" data-toggle-work-cat="concrete" class="px-2 py-1 rounded-lg bg-sky-950/80 hover:bg-sky-900 text-[11px] text-sky-200 border border-sky-500/60 font-semibold transition flex items-center gap-1 whitespace-nowrap shrink-0" title="คลิกเพื่อ แสดง/ซ่อน หมวดโครงสร้างคอนกรีต">
+                                    <span class="w-2 h-2 rounded-full bg-sky-400 shrink-0"></span>
+                                    <span>7. โครงสร้างคอนกรีต</span>
+                                </button>
+                                <button type="button" data-toggle-work-cat="subbase" class="px-2 py-1 rounded-lg bg-sky-950/80 hover:bg-sky-900 text-[11px] text-sky-200 border border-sky-500/60 font-semibold transition flex items-center gap-1 whitespace-nowrap shrink-0" title="คลิกเพื่อ แสดง/ซ่อน หมวดคอนกรีตหยาบรองพื้น">
+                                    <span class="w-2 h-2 rounded-full bg-sky-300 shrink-0"></span>
+                                    <span>8. คอนกรีตหยาบ</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- ปุ่ม รีเฟรชข้อมูล (สัญลักษณ์), ปุ่ม ค่าเริ่มต้นคูส่งน้ำ และ ปุ่ม แสดงข้อมูลตาราง อยู่แถวเดียวกัน ชิดขอบขวา -->
+                        <div class="ml-auto shrink-0 pl-1 flex items-center gap-1.5">
+                            <button type="button" id="btnRefreshBoqTableData" class="p-1.5 rounded-lg bg-slate-800 hover:bg-cyan-950/90 text-cyan-300 hover:text-cyan-200 border border-cyan-500/50 hover:border-cyan-400 shadow transition flex items-center justify-center shrink-0" title="รีเฟรชข้อมูล / อัปเดตการคำนวณตารางทั้งหมด" aria-label="รีเฟรชข้อมูล">
+                                <svg id="iconRefreshBoqTable" class="w-4 h-4 text-cyan-300 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            </button>
+                            <button type="button" id="btnOpenCanalDefaultsModal" class="px-3 py-1 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-950/60 border border-emerald-400/40 transition flex items-center gap-1.5 whitespace-nowrap shrink-0" title="ตั้งค่าเริ่มต้นคูส่งน้ำ (tw, tb, ts, dt), ตารางมิติ U-SHAPE (VU1-VU6) และการคำนวณ ระดับ TBL. = BL. + H">
+                                <svg class="w-4 h-4 text-emerald-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                <span>ค่าเริ่มต้นคูส่งน้ำ</span>
+                            </button>
+                            <button type="button" id="btnShowPrintableTableModal" class="px-3 py-1 rounded-lg bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-xs shadow-lg shadow-cyan-950/60 border border-cyan-400/40 transition flex items-center gap-1.5 whitespace-nowrap shrink-0" title="แสดงและพิมพ์ตารางปัจจุบันที่ผู้ใช้ทำงาน พร้อมตารางย่อยสรุปส่วนหัวและรายละเอียดคลองแต่ละสาย">
+                                <svg class="w-4 h-4 text-cyan-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                <span>แสดงข้อมูลตาราง</span>
+                            </button>
+                        </div>
+
+                        <!-- ซ่อน 3 ปุ่มที่กากบาทไว้เพื่อความเข้ากันได้ของ DOM -->
+                        <div class="hidden" aria-hidden="true">
+                            <button type="button" id="btnShowAllWorkCategories"><span>👁️ ทุกหมวดงาน</span></button>
+                            <button type="button"><span>4. ถมแรงคน (ซ้าย)</span></button>
+                            <button type="button"><span>5. ถมแรงคน (ขวา)</span></button>
+                        </div>
+                    </div>
+
+                    <!-- ซ่อนกล่องตัวกรองเดิมที่กากบาทไว้เพื่อความเข้ากันได้ของ DOM -->
+                    <div class="hidden" aria-hidden="true">
+                        <select id="selectCategoryView">
+                            <option value="all">แสดงครบทุกหมวดงานพร้อมกัน (พิกัดครบ 14 จุด)</option>
+                            <option value="all_hide_nodes">แสดงครบทุกหมวดงานพร้อมกัน (ซ่อนคอลัมน์ จุด 1-14)</option>
+                            <option value="stripping">1. ขุดลอกหน้าดิน (เฉพาะจุดที่เกี่ยวข้อง)</option>
+                            <option value="compacted">2. ดินถมบดอัดแน่น 85% (เฉพาะจุดที่เกี่ยวข้อง)</option>
+                            <option value="excavation">3. ดินขุด (เฉพาะจุดที่เกี่ยวข้อง)</option>
+                            <option value="manualLeft">4. ดินถมด้วยแรงคน (ซ้าย) (เฉพาะจุดที่เกี่ยวข้อง)</option>
+                            <option value="manualRight">5. ดินถมด้วยแรงคน (ขวา) (เฉพาะจุดที่เกี่ยวข้อง)</option>
+                            <option value="manualTotal">6. รวมดินถมด้วยแรงคน (ซ้าย+ขวา) (เฉพาะจุดที่เกี่ยวข้อง)</option>
+                            <option value="concrete">7. โครงสร้างคอนกรีต (เฉพาะจุดที่เกี่ยวข้อง)</option>
+                            <option value="subbase">8. คอนกรีตหยาบรองพื้น (เฉพาะจุดที่เกี่ยวข้อง)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Column Visibility Modal/Popover Dialog -->
+                <div id="columnVisibilityModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-slate-900 border-2 border-cyan-500/70 rounded-2xl max-w-2xl w-full p-5 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+                        <div class="flex justify-between items-center border-b border-slate-700/80 pb-2.5 shrink-0">
+                            <div class="flex items-center gap-2">
+                                <span class="p-1.5 rounded-lg bg-cyan-950 border border-cyan-500/50 text-cyan-400">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                </span>
+                                <div>
+                                    <h3 class="text-sm font-bold text-white">ตั้งค่าซ่อน / แสดงคอลัมน์ข้อมูล (คอลัมน์ A ถึง U)</h3>
+                                    <p class="text-[11px] text-slate-400">เลือกติ๊กเพื่อแสดง หรือยกเลิกติ๊กเพื่อซ่อนคอลัมน์บนหน้าจอ (ส่วนคำนวณพื้นที่ทุกรายการจะคงไว้เสมอ)</p>
+                                </div>
+                            </div>
+                            <button type="button" id="btnCloseColVisibilityModal" class="text-slate-400 hover:text-white font-bold p-1">✕</button>
+                        </div>
+
+                        <!-- Quick Presets -->
+                        <div class="flex flex-wrap items-center gap-1.5 shrink-0 text-xs">
+                            <span class="text-slate-400 text-[11px]">ชุดเลือกด่วน:</span>
+                            <button type="button" id="btnPresetColShowAll" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-[11px] font-semibold transition">แสดงทั้งหมด</button>
+                            <button type="button" id="btnPresetColHideDims" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] transition">ซ่อนขนาดโครงสร้าง (L-S)</button>
+                            <button type="button" id="btnPresetColHideCanal" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] transition">ซ่อนข้อมูลคลอง (A-C)</button>
+                            <button type="button" id="btnPresetColHideElevs" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] transition">ซ่อนระดับ (E,G,I,K)</button>
+                            <button type="button" id="btnPresetColToggleNodes" class="px-2.5 py-1 rounded bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-600/50 text-[11px] font-semibold transition">ซ่อน/แสดงคอลัมน์ จุด 1-14</button>
+                        </div>
+
+                        <!-- Column Checkbox List -->
+                        <div id="colVisibilityCheckboxContainer" class="flex-1 overflow-y-auto custom-scrollbar grid grid-cols-2 sm:grid-cols-3 gap-2 p-2.5 bg-slate-950/80 rounded-xl border border-slate-800 text-xs">
+                            <!-- Populated dynamically -->
+                        </div>
+
+                        <div class="flex justify-end pt-2 border-t border-slate-800 shrink-0">
+                            <button type="button" id="btnConfirmColVisibility" class="px-4 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold shadow transition">
+                                เรียบร้อย
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main BoQ Table Container -->
+                <div id="boqTableContainer" tabindex="0" class="overflow-x-auto custom-scrollbar rounded-xl border border-slate-700/80 bg-slate-950/90 shadow-inner focus:outline-none focus:ring-1 focus:ring-cyan-500/50">
+                    <table id="boqTable" class="w-full text-left border-collapse text-xs whitespace-nowrap">
+                        <thead id="boqTableHead" class="bg-slate-900 text-slate-200 sticky top-0 z-20"></thead>
+                        <tbody id="boqTableBody" class="divide-y divide-slate-800/80"></tbody>
+                        <tfoot id="boqTableFoot" class="bg-slate-900/95 border-t-2 border-slate-700 font-bold text-xs"></tfoot>
+                    </table>
+                </div>
+
+                <!-- Station Subdivision & Zero-Area Transition Split Toolbar (ย้ายมาไว้ด้านล่างตาราง ตามรูป 1) -->
+                <div class="bg-slate-900/95 border border-cyan-500/40 rounded-xl p-3 space-y-2.5 text-xs shadow-lg">
+                    <!-- Row 1: 3 Card Blocks Matching Row 2 Style -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
+                        <!-- บล็อกที่ 1: แบ่ง กม. ออกเป็นทุกๆ X ม. -->
+                        <div class="bg-slate-950/90 border border-cyan-600/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
+                            <div class="flex items-center justify-between gap-1">
+                                <div class="font-bold text-cyan-400 text-[11px] flex items-center gap-1.5 flex-wrap">
+                                    <span class="w-2 h-2 rounded-full bg-cyan-400 shrink-0"></span>
+                                    <label for="inputSubdivideStep" class="cursor-pointer">แบ่ง กม. ออกเป็นทุกๆ:</label>
+                                    <input type="number" id="inputSubdivideStep" value="25" min="1" max="1000" step="5" class="no-spinner w-12 bg-slate-900 border border-cyan-500/60 rounded px-1.5 py-0.5 text-center font-mono font-bold text-cyan-300 text-[11px] focus:outline-none focus:ring-1 focus:ring-cyan-400">
+                                    <span class="text-slate-400 font-normal">ม.</span>
+                                </div>
+                                <span id="badgeCountStepStations" class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-700/50 shrink-0">0 จุด</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-1">
+                                <button id="btnSubdivideStations" class="py-1 px-2 rounded-lg bg-cyan-600/90 hover:bg-cyan-500 text-white font-semibold text-[11px] transition truncate">
+                                    ✂️ แบ่ง กม. ทุกๆ 25 เมตร
+                                </button>
+                                <button id="btnRemoveSubdividedStations" class="py-1 px-2 rounded-lg bg-slate-800 hover:bg-rose-900/80 text-slate-300 hover:text-rose-200 border border-slate-700 text-[11px] font-medium transition truncate" title="แสดง/ซ่อน จุด กม. ที่เกิดจากการแบ่งทุกๆ X เมตร">
+                                    👁️ แสดง/ซ่อน กม. ที่แบ่ง
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- บล็อกที่ 2: แทรก กม. ดินเดิม -->
+                        <div class="bg-slate-950/90 border border-emerald-600/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
+                            <div class="flex items-center justify-between gap-1">
+                                <span class="font-bold text-emerald-400 text-[11px] flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                                    แทรก กม. ตามจุดหักดินเดิม (NGL)
+                                </span>
+                                <span id="badgeCountNglStations" class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700/50 shrink-0">0 จุด</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-1">
+                                <button id="btnInsertDigitizerStations" class="py-1 px-1.5 rounded-lg bg-emerald-600/85 hover:bg-emerald-500 text-white font-semibold text-[11px] transition truncate" title="แทรกจุดหักดินเดิมจากส่วนที่ 2 เข้ามาในตาราง (กรณีมีหลายสายจะมีหน้าต่างให้เลือกสาย)">
+                                    ➕ แทรก กม. ดินเดิม
+                                </button>
+                                <button type="button" id="btnDeleteDigitizerStationsByLine" class="py-1 px-1.5 rounded-lg bg-rose-900/80 hover:bg-rose-700 text-rose-200 border border-rose-600/50 font-semibold text-[11px] transition truncate" title="ลบจุด กม. ดินเดิมออกจากตาราง (กรณีมีหลายสายจะมีหน้าต่างให้เลือกสาย)">
+                                    🗑 ลบ กม. ดินเดิม
+                                </button>
+                                <button id="btnRemoveDigitizerStations" class="py-1 px-1.5 rounded-lg bg-slate-800 hover:bg-rose-900/80 text-slate-300 hover:text-rose-200 border border-slate-700 text-[11px] font-medium transition truncate" title="แสดง/ซ่อน จุด กม. ที่มาจากจุดหักดินเดิม">
+                                    👁️ แสดง/ซ่อน
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- บล็อกที่ 3: Save / Load / นำเข้า Excel / ส่งออก Excel (ตามรูป 1: สลับปุ่มและเปลี่ยนเป็น ส่งออก Excel) -->
+                        <div class="sm:col-span-2 xl:col-span-2 bg-slate-950/90 border border-indigo-500/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
+                            <div class="flex items-center justify-between gap-1">
+                                <span class="font-bold text-indigo-300 text-[11px] flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
+                                    จัดการไฟล์ข้อมูลตาราง (Save / Load / นำเข้า Excel / ส่งออก Excel)
+                                </span>
+                                <span id="badgeBoqRowCountInfo" class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-700/50 shrink-0">0 ช่วง กม.</span>
+                            </div>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                                <button type="button" id="btnBoqSaveFile" class="py-1 px-2 rounded-lg bg-indigo-950/90 hover:bg-indigo-800 text-indigo-200 border border-indigo-500/50 text-[11px] font-bold transition flex items-center justify-center gap-1" title="บันทึกข้อมูลตาราง BoQ และโปรเจกต์เป็นไฟล์ (.json)">
+                                    <span>💾 Save</span>
+                                </button>
+                                <button type="button" id="btnBoqLoadFile" class="py-1 px-2 rounded-lg bg-amber-950/90 hover:bg-amber-800 text-amber-200 border border-amber-500/50 text-[11px] font-bold transition flex items-center justify-center gap-1" title="โหลดไฟล์ข้อมูลตาราง BoQ (.json)">
+                                    <span>📂 Load</span>
+                                </button>
+                                <button type="button" id="btnBoqImportExcel" class="py-1 px-2 rounded-lg bg-emerald-600/90 hover:bg-emerald-500 text-white border border-emerald-400/50 text-[11px] font-bold transition flex items-center justify-center gap-1" title="นำเข้าข้อมูลจากไฟล์ Excel (.xlsx / .csv)">
+                                    <span>📥 นำเข้า Excel</span>
+                                </button>
+                                <button type="button" id="btnDownloadExcel" class="py-1 px-2 rounded-lg bg-cyan-600/90 hover:bg-cyan-500 text-white border border-cyan-400/50 text-[11px] font-bold transition flex items-center justify-center gap-1" title="ส่งออกข้อมูลและผลลัพธ์ทั้งหมดเข้าไฟล์ Excel (.xlsx)">
+                                    <span>📤 ส่งออก Excel</span>
+                                </button>
+                                <div class="hidden" aria-hidden="true">
+                                    <button type="button">3. คลิกเก็บจุดข้อมูล (NGL) 0 จุด</button>
+                                    <button type="button">👁️ แสดง/ซ่อน กม. ดินเดิม</button>
+                                    <button type="button">📍 ซ่อนพิกัดจุด (14 จุด)</button>
+                                    <button type="button">📤 ส่งเข้า Excel</button>
+                                </div>
+                                <input type="file" id="boqLoadJsonInput" accept=".json" class="hidden">
+                            </div>
+                        </div>
+
+                        <!-- Preserved hidden elements for backward compatibility -->
+                        <div class="hidden" aria-hidden="true">
+                            <select id="selectSubdivideScope"><option value="all">แบ่งทุกช่วง กม. ในตาราง</option></select>
+                            <input type="checkbox" id="chkSubdivideUseDigitizerNgl" checked>
+                            <span id="badgeStationDupStatus"></span>
+                            <button id="btnCheckDeduplicateStations"></button>
+                            <button id="btnSplitZeroAll"></button>
+                            <button id="btnRemoveZeroAll"></button>
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Per-Category Zero-Area Transition Split (4 Cards) -->
+                    <div class="pt-2 border-t border-slate-800/90">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
+                            <!-- 1. ขุดลอกหน้าดิน = 0 -->
+                            <div class="bg-slate-950/90 border border-amber-600/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-amber-400 text-[11px] flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                                        1. ขุดลอกหน้าดินเป็น 0
+                                    </span>
+                                    <span id="badgeCountZeroStripping" class="text-[10px] px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-700/50">0 จุด</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-1">
+                                    <button id="btnSplitZeroStripping" class="py-1 px-2 rounded-lg bg-amber-600/80 hover:bg-amber-500 text-white font-semibold text-[11px] transition">
+                                        ➕ แบ่ง กม.
+                                    </button>
+                                    <button id="btnRemoveZeroStripping" class="py-1 px-2 rounded-lg bg-slate-800 hover:bg-rose-900/80 text-slate-300 hover:text-rose-200 border border-slate-700 text-[11px] font-medium transition">
+                                        👁️ แสดง/ซ่อน กม.
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- 2. ดินถมบดอัดแน่น 85% = 0 -->
+                            <div class="bg-slate-950/90 border border-teal-600/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-teal-400 text-[11px] flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-teal-500"></span>
+                                        2. ดินถมบดอัด 85% เป็น 0
+                                    </span>
+                                    <span id="badgeCountZeroCompacted" class="text-[10px] px-1.5 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-700/50">0 จุด</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-1">
+                                    <button id="btnSplitZeroCompacted" class="py-1 px-2 rounded-lg bg-teal-600/80 hover:bg-teal-500 text-white font-semibold text-[11px] transition">
+                                        ➕ แบ่ง กม.
+                                    </button>
+                                    <button id="btnRemoveZeroCompacted" class="py-1 px-2 rounded-lg bg-slate-800 hover:bg-rose-900/80 text-slate-300 hover:text-rose-200 border border-slate-700 text-[11px] font-medium transition">
+                                        👁️ แสดง/ซ่อน กม.
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- 3. ดินขุด = 0 -->
+                            <div class="bg-slate-950/90 border border-orange-600/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-orange-400 text-[11px] flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+                                        3. พื้นที่ดินขุดเป็น 0
+                                    </span>
+                                    <span id="badgeCountZeroExcavation" class="text-[10px] px-1.5 py-0.5 rounded bg-orange-950 text-orange-300 border border-orange-700/50">0 จุด</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-1">
+                                    <button id="btnSplitZeroExcavation" class="py-1 px-2 rounded-lg bg-orange-600/80 hover:bg-orange-500 text-white font-semibold text-[11px] transition">
+                                        ➕ แบ่ง กม.
+                                    </button>
+                                    <button id="btnRemoveZeroExcavation" class="py-1 px-2 rounded-lg bg-slate-800 hover:bg-rose-900/80 text-slate-300 hover:text-rose-200 border border-slate-700 text-[11px] font-medium transition">
+                                        👁️ แสดง/ซ่อน กม.
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- 4. ดินถมด้วยแรงคน = 0 -->
+                            <div class="bg-slate-950/90 border border-purple-600/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-purple-400 text-[11px] flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                                        4. ดินถมด้วยแรงคนเป็น 0
+                                    </span>
+                                    <span id="badgeCountZeroManual" class="text-[10px] px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-700/50">0 จุด</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-1">
+                                    <button id="btnSplitZeroManualFill" class="py-1 px-2 rounded-lg bg-purple-600/80 hover:bg-purple-500 text-white font-semibold text-[11px] transition">
+                                        ➕ แบ่ง กม.
+                                    </button>
+                                    <button id="btnRemoveZeroManualFill" class="py-1 px-2 rounded-lg bg-slate-800 hover:bg-rose-900/80 text-slate-300 hover:text-rose-200 border border-slate-700 text-[11px] font-medium transition">
+                                        👁️ แสดง/ซ่อน กม.
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </section>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- รอบ 52: หน้าเมนูย่อย "ส่วนอาคารประกอบ" พร้อมเมนูแท็บซ้ายมือ (Typeคูส่งน้ำ / Typeอาคารประกอบ) ย่อ-ขยายเข้าออกด้านข้างได้ -->
+    <div class="structure-calc-page" id="structureCalcPage" style="display: none;">
+      <div class="structure-calc-top-bar">
+        <div class="structure-calc-page-title">
+          <span>🏛️ ส่วนอาคารประกอบ</span>
+          <span class="structure-calc-page-sub" id="structureCalcActiveTabTitle">🧱 Typeคูส่งน้ำ</span>
+        </div>
+        <div class="structure-calc-top-actions">
+          <button type="button" class="btn-action" style="background-color: #6c757d;" onclick="copyTableData()">📋 Copy</button>
+          <button type="button" class="btn-action" style="background-color: #007bff;" onclick="returnToTakeoff()">กลับสู่ ส่วนถอดแบบ</button>
+        </div>
+      </div>
+      <div class="structure-calc-body">
+        <div class="structure-calc-sidebar" id="structureCalcSidebar">
+          <div class="structure-calc-sidebar-header">
+            <span class="structure-calc-sidebar-title">รายการอาคารประกอบ</span>
+            <button type="button" class="structure-calc-collapse-btn" id="btnToggleStructureCalcSidebar" onclick="toggleStructureCalcSidebar(event)" title="ย่อ/ขยายเมนูแท็บซ้ายมือ">◀</button>
+          </div>
+          <div class="structure-calc-tabs-list" id="structureCalcTabsList">
+            <button type="button" class="struct-calc-tab-btn active" id="struct-calc-tab-type" onclick="switchStructureCalcTab('setting-type')" title="Typeคูส่งน้ำ">
+              <span class="struct-calc-tab-icon">🧱</span>
+              <span class="struct-calc-tab-text">Typeคูส่งน้ำ</span>
+            </button>
+            <button type="button" class="struct-calc-tab-btn" id="struct-calc-tab-structure" onclick="switchStructureCalcTab('setting-structure')" title="Typeอาคารประกอบ">
+              <span class="struct-calc-tab-icon">🏗️</span>
+              <span class="struct-calc-tab-text">Typeอาคารประกอบ</span>
+            </button>
+          </div>
+        </div>
+        <div class="structure-calc-main" id="structureCalcMain">
+          <div class="table-scroll-container structure-calc-table-container" id="structureCalcTableContainer">
+            <!-- ตาราง Typeคูส่งน้ำ / Typeอาคารประกอบ จะถูก render ที่นี่ -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ส่วนเนื้อหากลาง (ส่วนถอดแบบ) -->
+    <div class="center-content" id="centerContent">
+      <!-- รอบ 44: แถบหัว (ชื่อเมนู + ระบบเชฟอัตโนมัติ) ย้ายไปอยู่นอก .center-content แล้ว
+           เพื่อให้แสดงครบทุกหน้า (หน้าว่าง / แผนงานโครงการ / สรุปประมาณการ) -->
+
+      <!-- รอบ 46: แถบบนแสดงเฉพาะชื่อโครงการ + ที่อยู่ (ซ้าย) และระบบเชฟอัตโนมัติ (ขวา) -->
+      <div class="top-toolbar-bar" id="topToolbarBar">
+        <div class="page-header-project-info" id="topProjectInfoBar">
+          <span class="project-info-name" id="headerProjectName">โครงการจัดรูปที่ดินระบบคูส่งน้ำสายหลัก</span>
+          <span class="project-info-sep">|</span>
+          <span class="project-info-loc" id="headerProjectLocation">📍 ตำบลบ้านใหม่ อำเภอเมือง จังหวัดเชียงใหม่</span>
+        </div>
+        <div class="autosave-status-box" id="autosaveStatusBox" title="เชฟทุกๆ 10 นาที">
+          <span class="autosave-inline-label">⏱️ ระบบเชฟอัตโนมัติ :</span>
+          <strong id="autosaveLastTimeText">-</strong>
+        </div>
+        <!-- ซ่อน input อัปโหลดไฟล์ไว้ใน DOM เพื่อให้ทุกปุ่มเรียกใช้งานได้ -->
+        <input type="file" id="fileLoader" accept="image/*,application/pdf" multiple style="display: none;">
+      </div>
+
+      <div class="viewport-outer-container">
+        <!-- แว่นขยายลอยตัว 1.3 เท่า (234px) พร้อม Draggable Bar -->
+        <div class="magnifier-floating-box" id="magnifierBox">
+          <div class="magnifier-drag-bar" id="magnifierDragBar">
+            <span>🔍 แว่นขยาย (ลากย้ายได้)</span>
+            <span style="cursor: pointer;" onclick="toggleFloatingMagnifier()">✕</span>
+          </div>
+          <canvas id="magnifier" width="234" height="234"></canvas>
+        </div>
+
+        <!-- แท็บหน้าย่อยฝั่งซ้าย: แสดงหน้า PDF ย่อย หรือรูปภาพย่อย -->
+        <div class="left-thumbnails-sidebar" id="leftThumbnailsSidebar" style="display: flex;">
+          <div class="side-thumbnails-header" id="sideThumbnailsHeader">📄 หน้า PDF ย่อย</div>
+          <div class="pdf-thumbnails-list" id="pdfThumbnailsList">
+            <div class="thumb-empty-hint">ยังไม่มีหน้า PDF</div>
+          </div>
+        </div>
+
+        <!-- กรอบแสดงไฟล์ตรงกลาง: มีส่วนแสดงชื่อไฟล์ด้านบน + หน้าจอว่างกดอัปโหลด PDF + แคนวาส -->
+        <div class="viewport-center-wrapper" id="viewportCenterWrapper">
+          <div class="viewport-file-name-bar" id="viewportFileNameBar">
+            <span class="viewport-file-icon">📄</span>
+            <div id="fileStatusDisplay" class="file-status-display">ยังไม่ได้เลือกไฟล์</div>
+          </div>
+
+          <div class="canvas-viewport" id="viewport">
+            <div id="pdfEmptyUploadPrompt" class="pdf-empty-upload-prompt" style="display: none;" onclick="triggerPdfUpload()" title="คลิกเพื่อเลือกไฟล์ PDF">
+              <div class="pdf-empty-upload-card">
+                <div class="pdf-empty-upload-icon">📄</div>
+                <div class="pdf-empty-upload-title" id="pdfEmptyUploadText">กดเพื่ออัปโหลด ไฟล์ PDF</div>
+                <div class="pdf-empty-upload-sub">คลิกที่นี่เพื่อเลือกไฟล์ .pdf จากเครื่องของคุณ</div>
+              </div>
+            </div>
+            <div id="zoomBox"></div>
+            <canvas id="canvas" width="600" height="400"></canvas>
+          </div>
+        </div>
+
+        <!-- แท็บขวา: แถบแท็บ 3 ปุ่มด้านข้าง (media-side-rail) + แผงปุ่มควบคุมที่ย่อ/ขยายได้ -->
+        <div class="pdf-thumbnails-sidebar" id="pdfThumbnailsSidebar" style="display: flex;">
+          <div class="media-side-rail" id="mediaSideRail">
+            <div class="media-subtabs-group vertical-media-tabs" id="mediaSubTabsGroup">
+              <button type="button" class="media-subtab-btn media-tab-pdf active" id="media-tab-pdf" onclick="switchMediaViewTab('pdf')">📄 ส่วนไฟล์ PDF</button>
+              <button type="button" class="media-subtab-btn media-tab-image" id="media-tab-image" onclick="switchMediaViewTab('image')">🖼️ ส่วนรูปตัดตามยาว</button>
+              <button type="button" class="media-subtab-btn media-tab-draw" id="media-tab-draw" onclick="switchMediaViewTab('draw')">📐 ส่วนรูปตัดขวาง</button>
+            </div>
+            <button type="button" class="right-sidebar-toggle-btn" id="rightSidebarToggleBtn" onclick="toggleRightSidebar()" title="ย่อ/ขยายแถบเครื่องมือขวา">▶</button>
+          </div>
+          <div class="side-control-panel" id="sideControlPanel">
+            <!-- ปุ่มเฉพาะแท็บ PDF -->
+            <div class="side-tab-btn-group" id="sidePdfButtonsGroup" style="display: flex;">
+              <button type="button" id="btn-side-upload-pdf" class="btn-side-control btn-side-primary" onclick="triggerPdfUpload()" title="อัปโหลดไฟล์ PDF">📄 อัปโหลด PDF</button>
+              <button type="button" id="btn-side-save-frames" class="btn-side-control" onclick="togglePdfFrameCropButton()" data-mode="crop" title="ลากตีกรอบรูปบนหน้า PDF">✂️ ตีกรอบรูป</button>
+              <!-- รอบ 49: ย้ายปุ่มเขียว 2 ปุ่มบนมาอยู่ใต้เส้นปะ -->
+              <hr class="side-panel-divider" id="sidePdfTopDivider">
+              <button type="button" id="btn-toggle-crop-frames" class="btn-side-control btn-side-toggle active" onclick="toggleOverlayVisibilityForCurrentTab('cropFrames')" title="แสดง/ซ่อนกรอบรูป">🖼️ แสดงกรอบรูป</button>
+              <!-- รอบ 41: ปุ่มแสดง/ซ่อนจุด P1 P2 (แท็บ PDF) — อยู่เหนือปุ่ม "แสดงเส้นดินเดิม" -->
+              <button type="button" id="btn-toggle-ref-points-pdf" class="btn-side-control btn-side-toggle active" onclick="toggleRefPointsVisibility()" title="แสดง/ซ่อนจุดอ้างอิง P1 และ P2 (แท็บ PDF)">📍 แสดงจุด P1 P2</button>
+            </div>
+
+            <!-- ปุ่มและดรอปลิสต์เฉพาะแท็บส่วนแสดงรูปตัดขวาง (ข้อ 3, 4, 5, 6) -->
+            <div class="side-tab-btn-group" id="sideDrawButtonsGroup" style="display: none;">
+              <div class="side-draw-field-group">
+                <label class="side-draw-label" for="crossSectionChannelSelect">🌊 คลองส่งน้ำและคูส่งน้ำ</label>
+                <select id="crossSectionChannelSelect" class="side-draw-select" onchange="onCrossSectionChannelSelectChange(this.value)" title="เลือกคลองส่งน้ำและคูส่งน้ำ"></select>
+              </div>
+              <div class="side-draw-field-group">
+                <label class="side-draw-label" for="crossSectionKmSelect">📍 กม. คูส่งน้ำ (▲/▼ เปลี่ยนค่า)</label>
+                <div class="side-draw-km-row">
+                  <select id="crossSectionKmSelect" class="side-draw-select" onchange="onCrossSectionKmSelectChange(this.value)" onkeydown="onCrossSectionKmSelectKeyDown(event)" title="เลือก กม. คูส่งน้ำ (ใช้ลูกศรขึ้น-ลงเปลี่ยนค่าได้)"></select>
+                  <div class="side-draw-km-arrows">
+                    <button type="button" id="btn-cross-km-up" class="btn-cross-km-step" onclick="stepCrossSectionKm(-1)" title="กม. ก่อนหน้า (ลูกศรขึ้น ▲)">▲</button>
+                    <button type="button" id="btn-cross-km-down" class="btn-cross-km-step" onclick="stepCrossSectionKm(1)" title="กม. ถัดไป (ลูกศรลง ▼)">▼</button>
+                  </div>
+                </div>
+              </div>
+              <hr class="side-panel-divider">
+              <button type="button" id="btn-toggle-cs-dims" class="btn-side-control btn-side-toggle active" onclick="toggleCrossSectionLayer('showDims')" title="แสดง/ซ่อนมิติโครงสร้าง">📐 มิติโครงสร้าง</button>
+              <button type="button" id="btn-toggle-cs-widths" class="btn-side-control btn-side-toggle active" onclick="toggleCrossSectionLayer('showWidths')" title="แสดง/ซ่อนความกว้างขุดลอก/คันดิน">↔️ ความกว้างขุด/คันดิน</button>
+              <button type="button" id="btn-toggle-cs-table" class="btn-side-control btn-side-toggle active" onclick="toggleCrossSectionLayer('showSummaryTable')" title="แสดง/ซ่อนตารางแสดงค่าพื้นที่ จุด Node และตัวเลข">📋 ตารางแสดงค่าพื้นที่</button>
+              <hr class="side-panel-divider">
+              <button type="button" id="btn-toggle-cs-area-strip" class="btn-side-control btn-side-toggle cs-area-btn-strip active" onclick="toggleCrossSectionLayer('showAreaStripping')" title="แสดง/ซ่อนสีพื้นที่ขุดลอกหน้าดิน"><span class="cs-btn-label"><span class="cs-color-dot" style="background:#f59e0b;"></span>ขุดลอก</span></button>
+              <button type="button" id="btn-toggle-cs-area-excav" class="btn-side-control btn-side-toggle cs-area-btn-excav active" onclick="toggleCrossSectionLayer('showAreaExcavation')" title="แสดง/ซ่อนสีพื้นที่ดินขุด"><span class="cs-btn-label"><span class="cs-color-dot" style="background:#f97316;"></span>ดินขุด</span></button>
+              <button type="button" id="btn-toggle-cs-area-compacted" class="btn-side-control btn-side-toggle cs-area-btn-compacted active" onclick="toggleCrossSectionLayer('showAreaCompacted')" title="แสดง/ซ่อนสีพื้นที่ดินถมบดอัดแน่น 85%"><span class="cs-btn-label"><span class="cs-color-dot" style="background:#14b8a6;"></span>ดินถม 85</span></button>
+              <button type="button" id="btn-toggle-cs-area-manual" class="btn-side-control btn-side-toggle cs-area-btn-manual active" onclick="toggleCrossSectionLayer('showAreaManual')" title="แสดง/ซ่อนสีพื้นที่ดินถมแรงคน"><span class="cs-btn-label"><span class="cs-color-dot" style="background:#a855f7;"></span>ดินถมแรงคน</span></button>
+              <hr class="side-panel-divider">
+              <button type="button" id="btn-reset-cs-view" class="btn-side-control" onclick="resetCrossSectionView()" title="รีเซ็ตมุมมองรูปตัดขวาง">🔄 รีเซ็ตมุมมอง</button>
+            </div>
+
+            <!-- ปุ่มเฉพาะแท็บรูปภาพ -->
+            <div class="side-tab-btn-group" id="sideImageButtonsGroup" style="display: none;">
+              <button type="button" id="btn-side-upload-image" class="btn-side-control btn-side-primary" onclick="triggerImageUpload()" title="อัปโหลดไฟล์รูปภาพ">🖼️ อัปโหลดรูปภาพ</button>
+              <button type="button" id="btn-side-crop-pdf" class="btn-side-control" onclick="startPdfCropFrameMode()" title="ลากตีกรอบรูปจากหน้า PDF">✂️ ตีกรอบใน PDF</button>
+              <button type="button" id="btn-side-ai-read-one" class="btn-side-control btn-side-ai" onclick="aiReadCurrentFrame()" title="สั่ง AI อ่านข้อมูลจากกรอบที่เลือก">🤖 AI อ่านกรอบนี้</button>
+              <button type="button" id="btn-side-ai-read-all" class="btn-side-control btn-side-ai" onclick="aiReadAllFrames()" title="สั่ง AI อ่านข้อมูลทุกกรอบตามลำดับ">🤖 AI อ่านทุกกรอบ</button>
+              <!-- รอบ 35: ย้ายปุ่ม "ตั้งค่า AI" มาใต้ปุ่ม "อ่านทุกกรอบ" -->
+              <button type="button" id="btn-side-ai-settings" class="btn-side-control btn-side-ai-config" onclick="openAiApiSettingsModal()" title="ตั้งค่า AI">⚙️ ตั้งค่า AI</button>
+              <!-- รอบ 46: ลบปุ่มเครดิต AI ออกจากแท็บขวามือตามคำสั่งผู้ใช้ -->
+              <!-- รอบ 35: เวลารันอ่านอยู่ใต้หน้าต่างแสดงสถานะ -->
+              <div class="ai-working-status-box" id="aiWorkingStatusBox" style="display: none;">
+                <div class="ai-status-title">🤖 สถานะการทำงาน AI</div>
+                <div class="ai-status-row"><span>สถานะ:</span> <strong id="aiStatusStateText">กำลังอ่านข้อมูล...</strong></div>
+                <div class="ai-status-row"><span>อ่านกรอบที่:</span> <strong id="aiStatusFrameText">-</strong></div>
+                <div class="ai-status-row"><span>ใช้เวลา:</span> <strong id="aiStatusTimeText">0.0 วินาที</strong></div>
+              </div>
+              <!-- รอบ 35: ขีดเส้นปะแบ่งพื้นที่ปุ่มด้านล่าง -->
+              <hr class="side-panel-divider">
+            </div>
+
+            <!-- ปุ่มแสดงผลร่วม (แสดงเส้นดินเดิม / เส้นระดับ / ค่าระดับ / อาคาร / ค่า Slope) และปุ่มหมุน 90° อยู่ท้ายสุด -->
+            <div class="side-tab-btn-group" id="sideSharedDisplayButtons" style="display: flex;">
+              <!-- รอบ 41: ปุ่มแสดง/ซ่อนจุด P1 P2 (แท็บรูปตัดตามยาว) — อยู่เหนือปุ่ม "แสดงเส้นดินเดิม" -->
+              <button type="button" id="btn-toggle-ref-points-image" class="btn-side-control btn-side-toggle active" onclick="toggleRefPointsVisibility()" title="แสดง/ซ่อนจุดอ้างอิง P1 และ P2 (แท็บรูปตัดตามยาว)">📍 แสดงจุด P1 P2</button>
+              <button type="button" id="btn-toggle-ground-line" class="btn-side-control btn-side-toggle active" onclick="toggleOverlayVisibilityForCurrentTab('groundLine')" title="แสดง/ซ่อนเส้นดินเดิม">⛰️ แสดงเส้นดินเดิม</button>
+              <button type="button" id="btn-toggle-level-line" class="btn-side-control btn-side-toggle active" onclick="toggleOverlayVisibilityForCurrentTab('levelLine')" title="แสดง/ซ่อนเส้นระดับ">📈 แสดงเส้นระดับ</button>
+              <button type="button" id="btn-toggle-elev-labels" class="btn-side-control btn-side-toggle active" onclick="toggleOverlayVisibilityForCurrentTab('elevationLabels')" title="แสดง/ซ่อนตัวเลขค่าระดับ">🔢 แสดงค่าระดับ</button>
+              <button type="button" id="btn-toggle-structures" class="btn-side-control btn-side-toggle active" onclick="toggleOverlayVisibilityForCurrentTab('structures')" title="แสดง/ซ่อนตำแหน่งอาคาร">🏛️ แสดงชื่ออาคาร</button>
+              <button type="button" id="btn-toggle-slope-labels" class="btn-side-control btn-side-toggle active" onclick="toggleOverlayVisibilityForCurrentTab('slopeLabels')" title="แสดง/ซ่อนค่า Slope">📐 แสดงค่า Slope</button>
+              <hr class="side-panel-divider" id="sideRotateDivider">
+              <button type="button" id="btn-rotate-cw" class="btn-side-control btn-side-rotate-end" onclick="rotateImageView()" title="หมุนภาพ 90°">🔄 หมุน 90°</button>
+              <button type="button" id="btn-side-clear-all-objects" class="btn-side-control btn-side-danger" onclick="clearAllCanvasObjects()" title="ลบวัตถุที่วาดทั้งหมดบนภาพ">🗑️ ลบวัตถุทั้งหมด</button>
+            </div>
+
+            <!-- รอบ 35 / รอบ 49: ลบเส้นปะเส้นล่างสุดในส่วนรูปตัดตามยาว -->
+            <div class="side-ai-section" id="sideImageAiSection" style="display: none;"></div>
+
+            <!-- รอบ 44: ย้าย "ระบบเชฟอัตโนมัติ" ไปอยู่แถบหัวด้านบนแล้ว (ลบกล่องเดิมในแถบข้างออกทั้งหมด) -->
+
+            <!-- คง id เดิมแบบซ่อนไว้เพื่อความเข้ากันได้ของสคริปต์และชุดทดสอบ -->
+            <div style="display: none;" aria-hidden="true">
+              <button type="button" id="btn-toggle-magnifier" onclick="toggleFloatingMagnifier()">🔍 แว่นขยาย</button>
+              <button type="button" id="btn-lockzoom" onclick="toggleLockZoom()">🔓 ล็อกซูม</button>
+              <button type="button" id="btn-zoomwindow" onclick="toggleZoomWindow()">🔲 ซูม win</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="resizer-bar" id="resizerBar" title="คลิกลากขึ้น-ลงเพื่อปรับขนาดตาราง หรือกดปุ่มเพื่อย่อ/ขยาย">
+        <div class="resizer-handle"></div>
+        <div class="resizer-collapse-btns">
+          <button type="button" class="viewport-collapse-btn" id="btnToggleViewportCollapse" onclick="toggleViewportCollapse(event)" title="ย่อ/ขยายส่วนแสดงรูปภาพให้เหลือแถบเล็กๆ">▲ ย่อส่วนแสดงรูปภาพ</button>
+          <button type="button" class="bottom-table-collapse-btn" id="btnToggleBottomTable" onclick="toggleBottomTableCollapse(event)" title="ย่อ/ขยายส่วนตารางด้านล่างให้เหลือแถบเล็กๆ">▼ ย่อตาราง</button>
+        </div>
+      </div>
+
+      <!-- ===== แถบแท็บ 2 แถว =====
+           แถว 1 = แท็บหลัก (แท็บที่เลือกอยู่เป็นพื้นฟ้า)
+           แถว 2 = แท็บย่อยของ setting (แสดงเฉพาะเมื่อเลือกแท็บ setting) -->
+      <div class="tabs-area" id="bottomTabsArea">
+        <div class="table-tabs-header">
+          <div class="tabs-row-scroll">
+            <button class="tab-btn" id="tab-btn-project" onclick="switchTableTab('project')">📋 แผนงานโครงการ</button>
+            <button class="tab-btn active" id="tab-btn-ditch" onclick="switchTableTab('ditch')">🌊 ระบบคูส่งน้ำ</button>
+            <button class="tab-btn" id="tab-btn-dimension" onclick="switchTableTab('dimension')">📐 มิติคูส่งน้ำ</button>
+            <button class="tab-btn" id="tab-btn-ground" onclick="switchTableTab('ground')">⛰️ ระดับดินเดิม</button>
+            <button class="tab-btn" id="tab-btn-level" onclick="switchTableTab('level')">📊 ระดับคูส่งน้ำ</button>
+            <button class="tab-btn" id="tab-btn-structure" onclick="switchTableTab('structure')">🏛️ อาคารประกอบ</button>
+            <button class="tab-btn" id="tab-btn-attachment" onclick="switchTableTab('attachment')">🌾 อาคารท่อรับน้ำเข้าแปลงไร่นา</button>
+            <button class="tab-btn" id="tab-btn-ai-result" onclick="switchTableTab('ai-result')">🤖 ผลอ่าน AI</button>
+            <button class="tab-btn hidden-setting-tab" id="tab-btn-setting" style="display: none !important;" onclick="switchSettingsSubTab(settingsSubTab === 'structure' ? 'setting-structure' : 'setting-type')">⚙️ setting</button>
+          </div>
+        </div>
+
+        <!-- แถว 2: แท็บย่อยของ setting -->
+        <div class="settings-subtabs-bar hidden-setting-tab" id="settingsSubTabsBar" style="display: none !important;">
+          <button class="subtab-btn" id="subtab-btn-setting-type" onclick="switchSettingsSubTab('setting-type')">🧱 Typeคูส่งน้ำ</button>
+          <button class="subtab-btn" id="subtab-btn-setting-structure" onclick="switchSettingsSubTab('setting-structure')">🏗️ Typeอาคารประกอบ</button>
+        </div>
+      </div>
+
+      <!-- ส่วนตารางข้อมูลด้านล่าง -->
+      <div class="bottom-table-panel" id="bottomTablePanel">
+        <div class="table-scroll-container" id="tableContainer">
+          <!-- ตารางจะถูก render ผ่านฟังก์ชัน switchTableTab และ updateTable -->
+        </div>
+
+        <!-- แถบส่วนล่างสุด แยกเป็น 2 กรอบชัดเจน -->
+        <div class="table-bottom-bar-split">
+          <!-- กรอบฝั่งซ้าย: ปุ่ม Copy, บันทึก/โหลด, ส่งออก/นำเข้า Excel -->
+          <div class="footer-box-left">
+            <button class="btn-action" style="background-color: #6c757d;" onclick="copyTableData()">📋 Copy</button>
+            <button class="btn-action" style="background-color: #007bff;" onclick="saveProjectJSON()">💾 บันทึก</button>
+            <label class="btn-action" style="background-color: #17a2b8; margin: 0;">
+              📂 โหลด
+              <input type="file" accept=".json" style="display: none;" onchange="loadProjectJSON(event)">
+            </label>
+            <button class="btn-action" style="background-color: #28a745;" onclick="exportAllToExcel()">📗 ส่งออก Excel</button>
+            <label class="btn-action" style="background-color: #20c997; margin: 0;">
+              📥 นำเข้า Excel
+              <input type="file" accept=".xlsx,.xls" style="display: none;" onchange="importAllFromExcel(event)">
+            </label>
+            <button id="btn-sample-excel" class="btn-action" style="background-color: #0d9488;" onclick="downloadSampleImportExcel()" title="ดาวน์โหลดตัวอย่างไฟล์ Excel สำหรับนำเข้า">📄 ตัวอย่างไฟล์นำเข้า</button>
+            <!-- รอบ 41: ปุ่มตรวจสอบข้อมูล (ถัดจากปุ่มนำเข้า Excel) → เปิดแท็บสีแดงแสดง error -->
+            <button id="btn-validate-data" class="btn-action btn-validate-data" style="background-color: #dc3545;" onclick="runDataValidation()">🔍 ตรวจสอบข้อมูล</button>
+          </div>
+
+          <!-- กรอบฝั่งขวา: P1, P2 และ ลากเส้นดินเดิม -->
+          <div class="footer-box-right" style="display: none;">
+            <button id="btn-p1" class="btn-calib-p" onclick="setMode('p1')">เลือกจุด P1</button>
+            <div class="calib-input-inline">
+              <span>กม.:</span><input type="number" id="p1XVal" value="0">
+              <span>ระดับ:</span><input type="number" id="p1YVal" value="0">
+            </div>
+
+            <button id="btn-p2" class="btn-calib-p" onclick="setMode('p2')">เลือกจุด P2</button>
+            <div class="calib-input-inline">
+              <span>กม.:</span><input type="number" id="p2XVal" value="100">
+              <span>ระดับ:</span><input type="number" id="p2YVal" value="50">
+            </div>
+
+            <button id="btn-data" class="btn-step3-inline" onclick="startDataMode()">ลากเส้นดินเดิม</button>
+          </div>
+        </div>
+
+        <!-- รอบ 41 / รอบ 54: หน้าต่างแสดงผลตรวจสอบข้อมูล (แสดงใต้แถวปุ่ม) -->
+        <div id="validationTabHost" class="validation-tab-host" style="display: none;"></div>
+      </div>
+
+    </div>
+
+  </div>
+  </div><!-- /.app-shell -->
+
+  <!-- รอบ 44: หน้าต่างแจ้งเตือนเล็ก ๆ มุมบนขวา (ใช้เมื่อบันทึกข้อมูล) -->
+  <div class="save-toast-stack" id="saveToastStack"></div>
+
+  <!-- ระบบแจ้งเตือนและกล่องยืนยันที่สร้างในหน้าเว็บ (ใช้แทน alert/confirm ของเบราว์เซอร์
+       เพราะเมื่อเปิดผ่านพรีวิวแบบ sandbox ที่ไม่มี allow-modals ระบบจะบล็อก modal ทั้งหมด) -->
+  <div class="ui-toast-stack" id="uiToastStack"></div>
+
+  <div class="ui-modal-overlay" id="uiConfirmOverlay">
+    <div class="ui-modal-box" role="dialog" aria-modal="true">
+      <div class="ui-modal-message" id="uiConfirmMessage"></div>
+      <input type="text" class="ui-modal-input" id="uiConfirmInput" style="display: none;">
+      <div class="ui-modal-actions">
+        <button type="button" class="ui-modal-btn ui-modal-cancel" id="uiConfirmCancelBtn">ยกเลิก</button>
+        <button type="button" class="ui-modal-btn ui-modal-ok" id="uiConfirmOkBtn">ยืนยัน</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- รอบ 42: หน้าต่าง "ตรวจสอบข้อมูลก่อนส่งออก" (แสดงตารางตามแท็บต่าง ๆ + แท็บรวมข้อมูล 3 แท็บ) -->
+  <div class="ep-overlay" id="exportPreviewOverlay">
+  </div>
+
+  <!-- ระบบจัดการเครดิต AI + งานอ่านรูปที่ค้างไว้ (รอบ 42) -->
+  <div class="ai-credit-overlay" id="aiCreditOverlay">
+    <div class="ai-credit-box" role="dialog" aria-modal="true" aria-label="สถานะเครดิต AI">
+      <div class="ai-credit-header">
+        <div class="ai-credit-title">💳 เครดิต AI</div>
+        <button type="button" class="ai-credit-close-x" onclick="closeAiCreditPanel()" title="ปิด">✕</button>
+      </div>
+      <div class="ai-credit-body" id="aiCreditBody">
+      </div>
+      <div class="ai-credit-actions">
+        <button type="button" class="ai-credit-btn ai-credit-btn-refresh" onclick="refreshAiCreditBalance()" title="ตรวจสอบเครดิตล่าสุด">🔄 ตรวจสอบเครดิต</button>
+        <button type="button" class="ai-credit-btn ai-credit-btn-close" onclick="closeAiCreditPanel()">ปิด</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- หน้าต่าง Popup ตั้งค่า AI (ตามรูปที่ 2) -->
+  <div class="ui-modal-overlay" id="aiSettingsModalOverlay" onclick="handleAiModalBackdropClick(event)">
+    <div class="ai-settings-modal-wrapper" role="dialog" aria-modal="true" aria-labelledby="aiSettingsTopBadge">
+      <div class="ai-settings-top-row">
+        <button type="button" class="ai-settings-top-btn" id="aiSettingsTopBadge" onclick="closeAiApiSettingsModal()">
+          <span class="ai-gear-icon">⚙️</span> ตั้งค่า AI
+        </button>
+        <button type="button" class="ai-settings-close-x" onclick="closeAiApiSettingsModal()" title="ปิดหน้าต่าง">✕</button>
+      </div>
+      <div class="ai-settings-card">
+        <p class="ai-settings-desc">
+          ระบุปลายทางที่ใช้อ่านรูปแบบ ค่าที่กรอกจะถูกเก็บไว้ในเบราว์เซอร์เครื่องนี้ และส่งไปยัง <code>/v1/chat/completions</code> เฉพาะตอนอ่านรูป
+        </p>
+
+        <div class="ai-field-group">
+          <label class="ai-field-label" for="aiInputBaseUrl">Base URL</label>
+          <input type="text" id="aiInputBaseUrl" class="ai-field-input" value="https://api.openai.com/v1" placeholder="https://api.openai.com/v1">
+        </div>
+
+        <div class="ai-field-group">
+          <label class="ai-field-label" for="aiInputModel">Model</label>
+          <div class="ai-model-row">
+            <input type="text" id="aiInputModel" class="ai-field-input" value="gpt-4o" placeholder="gpt-4o">
+            <button type="button" class="ai-model-fetch-btn" id="aiFetchModelsBtn" onclick="fetchAvailableAiModels()" title="ดูรายชื่อโมเดลที่ใช้ได้จริงจาก API">🔄 ดูโมเดล</button>
+          </div>
+          <div class="ai-models-list" id="aiModelsList" style="display:none"></div>
+        </div>
+
+        <div class="ai-field-group">
+          <label class="ai-field-label">คุณภาพการอ่าน (คิดค่าใช้จ่าย)</label>
+          <div class="ai-quality-list" id="aiQualityList">
+            <button type="button" class="ai-quality-option selected" data-quality="1400" id="aiQualityOpt1400" onclick="selectAiReadQuality('1400')">
+              <div class="ai-quality-left">
+                <div class="ai-quality-title">ประหยัด</div>
+                <div class="ai-quality-sub">รูปย่อพอให้อ่านตัวเลขได้ ไม่คิดเหตุผลเพิ่ม</div>
+              </div>
+              <div class="ai-quality-px">1400px</div>
+            </button>
+            <button type="button" class="ai-quality-option" data-quality="2400" id="aiQualityOpt2400" onclick="selectAiReadQuality('2400')">
+              <div class="ai-quality-left">
+                <div class="ai-quality-title">สมดุล</div>
+                <div class="ai-quality-sub">อ่านละเอียดขึ้น ยังประหยัดกว่าเดิมมาก</div>
+              </div>
+              <div class="ai-quality-px">2400px</div>
+            </button>
+            <button type="button" class="ai-quality-option" data-quality="3500" id="aiQualityOpt3500" onclick="selectAiReadQuality('3500')">
+              <div class="ai-quality-left">
+                <div class="ai-quality-title">คุณภาพสูง</div>
+                <div class="ai-quality-sub">ความละเอียดสูงสุด สำหรับรูปที่อ่านยาก</div>
+              </div>
+              <div class="ai-quality-px">3500px</div>
+            </button>
+          </div>
+        </div>
+
+        <div class="ai-field-group">
+          <label class="ai-field-label" for="aiInputApiKey">API key</label>
+          <div class="ai-apikey-row">
+            <input type="password" id="aiInputApiKey" class="ai-field-input" placeholder="sk-..." autocomplete="off">
+            <button type="button" class="ai-apikey-eye-btn" id="aiToggleKeyVisibilityBtn" onclick="toggleAiApiKeyVisibility()" title="แสดง/ซ่อน API key">👁</button>
+          </div>
+        </div>
+
+        <div class="ai-history-box" id="aiSavedPresetsBox">
+          <div class="ai-history-header">🕒 ค่าที่เคยใช้ (กดเพื่อกลับมาใช้ใหม่)</div>
+          <div class="ai-history-list" id="aiSavedPresetsList">
+            <div class="ai-history-empty">ยังไม่มีค่าที่บันทึกไว้ ค่าที่เคยกรอกจะถูกเก็บไว้ให้กลับมาใช้ได้เอง</div>
+          </div>
+        </div>
+
+        <div class="ai-actions-row">
+          <button type="button" class="ai-action-btn" id="btnAiTestConnection" onclick="testAiConnectionConfig()">🔌 ทดสอบการเชื่อมต่อ</button>
+          <button type="button" class="ai-action-btn" id="btnAiSaveSettings" onclick="saveAiSettingsFromModal()">💾 บันทึกค่านี้</button>
+          <button type="button" class="ai-action-clear-btn" id="btnAiClearSettings" onclick="clearAiSettingsConfig()">↺ ล้างการตั้งค่า</button>
+        </div>
+
+        <div id="aiConnectionTestFeedback" class="ai-test-feedback" style="display: none;"></div>
+
+        <p class="ai-settings-footer-note">
+          แอปนี้เป็นเครื่องมือบนเครื่องส่วนตัว กรุณาอย่านำไป deploy เป็นบริการสาธารณะ เพราะคีย์จะถูกส่งผ่านเซิร์ฟเวอร์ของตัวเอง
+        </p>
+      </div>
+    </div>
+  </div>
+
+    <!-- Calculation Report Modal Window (หน้าต่างแสดงรายการคำนวณแบบละเอียด) -->
+    <div id="calcReportModal" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-slate-900 border-2 border-cyan-500/70 rounded-2xl max-w-5xl w-full max-h-[95vh] flex flex-col shadow-2xl overflow-hidden">
+            <!-- Modal Action Header Bar -->
+            <div id="calcReportModalHeader" class="bg-slate-800/95 border-b border-slate-700/80 px-4 py-3 flex flex-wrap justify-between items-center gap-3 shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="p-2 rounded-xl bg-cyan-950 border border-cyan-500/50 text-cyan-400 shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                            <span>รายการคำนวณพื้นที่รูปตัดคูส่งน้ำคอนกรีตกรณี U-SHAPE</span>
+                            <span class="text-xs font-normal text-cyan-300 hidden sm:inline">(แบบละเอียดแยกตามรายการพื้นที่)</span>
+                        </h3>
+                        <p class="text-[11px] text-slate-300">
+                            อ้างอิงสูตรพิกัดจุดยอด (Coordinate Method) & เรขาคณิตมาตรฐาน
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Export & Action Buttons -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" id="btnPrintCalcReport" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-xs font-semibold shadow transition flex items-center gap-1.5" title="พิมพ์หน้ารายการคำนวณออกทางเครื่องพิมพ์">
+                        <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                        <span>พิมพ์ (Print)</span>
+                    </button>
+                    <button type="button" id="btnDownloadCalcPdf" class="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg shadow-rose-950/50 transition flex items-center gap-1.5" title="เปิดหน้าต่างพิมพ์และบันทึกเป็นไฟล์ PDF (Save as PDF)">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <span>ดาวน์โหลด PDF</span>
+                    </button>
+                    <button type="button" id="btnCopyCalcReportText" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 text-xs font-semibold shadow transition flex items-center gap-1.5" title="คัดลอกข้อความรายการคำนวณทั้งหมดเป็นข้อความปกติลงคลิปบอร์ด">
+                        <svg class="w-4 h-4 text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                        <span>คัดลอกข้อความ</span>
+                    </button>
+                    <button type="button" id="btnDownloadCalcWord" class="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-950/50 transition flex items-center gap-1.5" title="ดาวน์โหลดเป็นไฟล์ Microsoft Word (.docx) รูปแบบจริง พร้อมตาราง และรูปภาพแผนภาพเรขาคณิตในตัว">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        <span>ดาวน์โหลด Word (.docx)</span>
+                    </button>
+                    <button type="button" id="btnCloseCalcReport" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition">
+                        ✕ ปิด
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scrollable Document Viewport (Paper Style White Document View) -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-6 bg-slate-950/90">
+                <div id="calcReportDocument" class="w-full max-w-4xl mx-auto bg-white text-slate-900 rounded-xl shadow-2xl p-6 sm:p-10 font-sans text-xs sm:text-sm space-y-6 min-h-full h-auto">
+                    <!-- Populated dynamically by generateCalculationReport() -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Modal 3: แจ้งเตือนเมื่อไม่มีข้อมูลดินเดิม ให้ไปดำเนินการที่ส่วนที่ 2 ก่อน -->
+    <div id="noNglDataAlertModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-amber-500/70 rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4">
+            <div class="flex items-start gap-3">
+                <div class="p-2.5 rounded-xl bg-amber-950 border border-amber-500/50 text-amber-400 shrink-0">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                </div>
+                <div class="space-y-1">
+                    <h3 class="text-sm sm:text-base font-bold text-white">ยังไม่มีข้อมูลระดับดินเดิม (NGL)</h3>
+                    <p id="noNglDataAlertMessage" class="text-xs text-slate-300 leading-relaxed">
+                        ไม่พบข้อมูลระดับดินเดิมสำหรับสายคลองส่งน้ำ/คูส่งน้ำนี้ กรุณาไปดำเนินการดึงค่าระดับดินเดิม (NGL) และกดบันทึก (Save) ที่ <strong>ส่วนที่ 2 • XY Digitizer</strong> ก่อนครับ
+                    </p>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <button type="button" id="btnCloseNoNglAlertModal" class="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-medium transition">
+                    ปิด
+                </button>
+                <button type="button" id="btnGoToSection2FromAlert" class="px-4 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow transition">
+                    ไปที่ส่วนถอดแบบ (ระดับดินเดิม) ▶
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 4: เลือกสายคลองส่งน้ำ/คูส่งน้ำ เมื่อกดปุ่ม "แทรก กม. ดินเดิม" หรือ "ลบ" ในส่วนที่ 3 (กรณีในตารางมีหลายสาย) -->
+    <div id="nglInsertDeleteLineModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-emerald-500/70 rounded-2xl max-w-2xl w-full p-5 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center border-b border-slate-700/80 pb-2.5 shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <span class="p-2 rounded-xl bg-emerald-950 border border-emerald-500/50 text-emerald-300">🌊</span>
+                    <div>
+                        <h3 id="nglLineModalTitle" class="text-sm sm:text-base font-bold text-white">เลือกสายคลองส่งน้ำ / คูส่งน้ำ สำหรับแทรกหรือลบ กม. ดินเดิม</h3>
+                        <p class="text-[11px] text-slate-400">เลือกสายที่ต้องการแทรกจุดหักดินเดิม (NGL) หรือลบจุดหักดินเดิมออกจากตารางส่วนที่ 3</p>
+                    </div>
+                </div>
+                <button type="button" id="btnCloseNglLineModal" class="text-slate-400 hover:text-white font-bold p-1">✕</button>
+            </div>
+
+            <div class="flex items-center justify-between gap-2 text-xs bg-slate-950/80 px-3 py-2 rounded-xl border border-slate-800 shrink-0">
+                <label class="flex items-center gap-2 cursor-pointer font-semibold text-cyan-300">
+                    <input type="checkbox" id="chkSelectAllNglModalLines" checked class="rounded border-slate-700 text-cyan-500 focus:ring-cyan-400">
+                    <span>เลือกทั้งหมดทุกสายในตาราง</span>
+                </label>
+                <span id="nglLineModalCountSummary" class="text-[11px] text-slate-400">-</span>
+            </div>
+
+            <div id="nglLineModalListContainer" class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-1">
+                <!-- Populated dynamically -->
+            </div>
+
+            <div class="flex flex-wrap justify-between items-center gap-2 pt-2.5 border-t border-slate-800 shrink-0">
+                <button type="button" id="btnCancelNglLineModal" class="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold transition">
+                    ยกเลิก
+                </button>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" id="btnConfirmDeleteNglSelectedLines" class="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow transition flex items-center gap-1">
+                        <span>🗑 ลบ กม. ดินเดิม (สายที่เลือก)</span>
+                    </button>
+                    <button type="button" id="btnConfirmInsertNglSelectedLines" class="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950/60 transition flex items-center gap-1.5">
+                        <span>➕ แทรก กม. ดินเดิม (สายที่เลือก)</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 5: หน้าต่าง "แสดงข้อมูลตาราง" (พิมพ์ตารางปัจจุบันที่ผู้ใช้ทำงาน พร้อมตารางย่อยสรุปส่วนหัว และแถวแทรกรายละเอียดแต่ละสาย) -->
+    <div id="printableBoqTableModal" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-slate-900 border-2 border-cyan-500/70 rounded-2xl max-w-[96vw] w-full max-h-[95vh] flex flex-col shadow-2xl overflow-hidden">
+            <div id="printableBoqTableModalHeader" class="bg-slate-800/95 border-b border-slate-700/80 px-4 py-3 flex flex-wrap justify-between items-center gap-3 shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="p-2 rounded-xl bg-cyan-950 border border-cyan-500/50 text-cyan-400 shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                            <span>แสดงข้อมูลตารางและสรุปปริมาณงานแต่ละสาย (พิมพ์ตารางปัจจุบัน)</span>
+                        </h3>
+                        <p class="text-[11px] text-slate-300">
+                            แสดงตารางย่อยสรุปปริมาณงานแต่ละสายส่วนหัว • แทรกแถวแรกของแต่ละสายแสดงชื่อคลอง คูส่งน้ำ มิติและความหนา • แสดงคอลัมน์ตามที่กำลังทำงาน
+                        </p>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" id="btnPrintCurrentBoqTable" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow transition flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                        <span>พิมพ์ตาราง (Print)</span>
+                    </button>
+                    <button type="button" id="btnDownloadPrintableBoqPdf" class="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow transition flex items-center gap-1.5" title="ดาวน์โหลดตารางเป็นไฟล์ PDF แนวนอนครบทุกหน้า">
+                        <span>📥 ดาวน์โหลด PDF</span>
+                    </button>
+                    <button type="button" id="btnDownloadPrintableBoqWord" class="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow transition flex items-center gap-1.5" title="ดาวน์โหลดตารางเป็นไฟล์เอกสาร Microsoft Word (.doc) แนวนอนครบทุกหน้า">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        <span>ดาวน์โหลด Word (.doc)</span>
+                    </button>
+                    <button type="button" id="btnClosePrintableBoqModal" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition">
+                        ✕ ปิด
+                    </button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-5 bg-slate-950/90">
+                <div id="tempPrintableBoqPdfStage" class="hidden" aria-hidden="true"></div>
+                <div id="printableBoqDocument" class="w-full max-w-[1020px] mx-auto bg-white text-slate-900 rounded-xl shadow-2xl p-4 sm:p-6 font-sans text-xs space-y-4">
+                    <!-- Populated dynamically by generatePrintableBoqTableReport() -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 6: หน้าต่าง "ค่าเริ่มต้นคูส่งน้ำ" (ความหนาเริ่มต้น + ตารางมิติ U-SHAPE ตามรูป 1 + สูตรการคำนวณ ระดับ TBL. = BL. + H) -->
+    <div id="canalDefaultsModal" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-slate-900 border-2 border-emerald-500/70 rounded-2xl max-w-2xl w-full max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
+            <!-- Header -->
+            <div class="bg-slate-800/95 border-b border-slate-700/80 px-4 py-3 flex justify-between items-center gap-3 shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="p-2 rounded-xl bg-emerald-950 border border-emerald-500/50 text-emerald-400 shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                            <span>ค่าเริ่มต้นคูส่งน้ำ (ตารางมิติ U-SHAPE และการคำนวณ)</span>
+                        </h3>
+                        <p class="text-[11px] text-slate-300">
+                            กำหนดความหนาเริ่มต้น ตารางมิติ U-SHAPE (Type VU1–VU6) และสูตรคำนวณระดับหลังคันคลอง
+                        </p>
+                    </div>
+                </div>
+                <button type="button" id="btnCloseCanalDefaultsModal" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition">
+                    ✕ ปิด
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-5 space-y-4 text-xs">
+                <!-- 1. ค่าเริ่มต้นความหนาโครงสร้างและงานดิน -->
+                <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-2.5">
+                    <div class="font-bold text-emerald-300 text-xs sm:text-sm flex items-center gap-1.5 border-b border-slate-800 pb-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        <span>ค่าเริ่มต้นความหนาโครงสร้างและงานดิน (Default Thicknesses)</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                        <div class="flex items-center justify-between gap-2 bg-slate-900/90 border border-slate-800 px-3 py-2 rounded-lg">
+                            <label for="defInputTw" class="text-slate-200 font-medium">1. ความหนากำแพง U-SHAPE (<span class="text-cyan-300 font-mono font-bold">tw</span>)</label>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <span class="text-slate-400">=</span>
+                                <input type="number" id="defInputTw" step="0.01" min="0.01" value="0.10" class="w-20 px-2 py-1 rounded bg-slate-950 border border-slate-700 text-right font-mono font-bold text-emerald-300 focus:outline-none focus:border-emerald-400">
+                                <span class="text-slate-400">ม.</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between gap-2 bg-slate-900/90 border border-slate-800 px-3 py-2 rounded-lg">
+                            <label for="defInputTb" class="text-slate-200 font-medium">2. ความหนาพื้น U-SHAPE (<span class="text-cyan-300 font-mono font-bold">tb</span>)</label>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <span class="text-slate-400">=</span>
+                                <input type="number" id="defInputTb" step="0.01" min="0.01" value="0.10" class="w-20 px-2 py-1 rounded bg-slate-950 border border-slate-700 text-right font-mono font-bold text-emerald-300 focus:outline-none focus:border-emerald-400">
+                                <span class="text-slate-400">ม.</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between gap-2 bg-slate-900/90 border border-slate-800 px-3 py-2 rounded-lg">
+                            <label for="defInputTs" class="text-slate-200 font-medium">3. ความหนาคอนกรีตหยาบรองพื้น (<span class="text-cyan-300 font-mono font-bold">ts</span>)</label>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <span class="text-slate-400">=</span>
+                                <input type="number" id="defInputTs" step="0.01" min="0" value="0.05" class="w-20 px-2 py-1 rounded bg-slate-950 border border-slate-700 text-right font-mono font-bold text-emerald-300 focus:outline-none focus:border-emerald-400">
+                                <span class="text-slate-400">ม.</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between gap-2 bg-slate-900/90 border border-slate-800 px-3 py-2 rounded-lg">
+                            <label for="defInputDt" class="text-slate-200 font-medium">4. ความหนาขุดลอกหน้าดิน (<span class="text-cyan-300 font-mono font-bold">dt</span>)</label>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <span class="text-slate-400">=</span>
+                                <input type="number" id="defInputDt" step="0.01" min="0" value="0.30" class="w-20 px-2 py-1 rounded bg-slate-950 border border-slate-700 text-right font-mono font-bold text-emerald-300 focus:outline-none focus:border-emerald-400">
+                                <span class="text-slate-400">ม.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. ตารางมิติ U-SHAPE (ตามรูป 1) -->
+                <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-2.5">
+                    <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-2">
+                        <div class="font-bold text-emerald-300 text-xs sm:text-sm flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                            <span>ตารางมิติ U-SHAPE (จับคู่ขนาด B และ H อัตโนมัติตามคอลัมน์ TYPE)</span>
+                        </div>
+                        <button type="button" id="btnAddUShapeTypeRow" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow transition flex items-center gap-1" title="เพิ่มแถว Type ใหม่">
+                            <span>+ เพิ่ม Type</span>
+                        </button>
+                    </div>
+
+                    <!-- ตารางมิติ U-SHAPE รูปแบบเดียวกับตารางหลักของเว็บ (Dark Engineering Table Style) -->
+                    <div class="overflow-hidden rounded-xl border border-slate-700/80 shadow-inner bg-slate-950/90">
+                        <table class="w-full border-collapse text-center text-xs">
+                            <thead class="bg-slate-900/95 text-cyan-300 border-b border-slate-700/80">
+                                <tr class="bg-slate-900/90 text-[11px] text-slate-400 border-b border-slate-800">
+                                    <th class="py-1 px-2 border-r border-slate-800 font-mono text-cyan-400/90">A</th>
+                                    <th class="py-1 px-2 border-r border-slate-800 font-mono text-cyan-400/90">B</th>
+                                    <th class="py-1 px-2 font-mono text-cyan-400/90">C</th>
+                                </tr>
+                                <tr>
+                                    <th class="py-2 px-3 font-bold border-r border-slate-800 w-1/3 text-cyan-300">Type</th>
+                                    <th class="py-2 px-3 font-bold border-r border-slate-800 w-1/3 text-cyan-300">B (ม.)</th>
+                                    <th class="py-2 px-3 font-bold w-1/3 text-cyan-300">H (ม.)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="uShapeTypeTableBody" class="divide-y divide-slate-800/80">
+                                <!-- Populated dynamically by renderUShapeTypeTableModal() -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-[11px] text-slate-400">
+                        * เมื่อพิมพ์หรือเปลี่ยนค่าคอลัมน์ <strong class="text-cyan-300">TYPE</strong> ในตารางคำนวณ (เช่น VU1–VU6) ระบบจะดึงค่า <strong class="text-cyan-300">B</strong> และ <strong class="text-cyan-300">H</strong> จากตารางนี้ไปใส่และคำนวณ <strong class="text-emerald-300">ระดับ TBL. = BL. + H</strong> ให้อัตโนมัติ
+                    </p>
+                </div>
+
+                <!-- 3. การคำนวณและข้อกำหนด -->
+                <div class="bg-emerald-950/40 border border-emerald-500/50 rounded-xl p-3.5 space-y-2.5">
+                    <div class="font-bold text-emerald-300 text-xs sm:text-sm flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        <span>การคำนวณและข้อกำหนด (Calculation & Import Rules)</span>
+                    </div>
+                    <div class="pl-3.5 space-y-2 text-slate-200">
+                        <div>
+                            <div class="font-bold text-xs sm:text-sm text-white font-mono bg-slate-900/90 border border-emerald-500/40 rounded-lg px-3 py-1.5 inline-block">
+                                1. ระดับ TBL. = BL. + H
+                            </div>
+                            <div class="text-[11px] text-slate-300 pt-1 space-y-0.5">
+                                <div>• <strong>ระดับ TBL. เริ่มต้น (คอลัมน์ G)</strong> = ระดับ BL. เริ่มต้น (คอลัมน์ F) + H (คอลัมน์ M)</div>
+                                <div>• <strong>ระดับ TBL. สิ้นสุด (คอลัมน์ K)</strong> = ระดับ BL. สิ้นสุด (คอลัมน์ J) + H (คอลัมน์ M)</div>
+                            </div>
+                        </div>
+                        <div class="pt-1.5 border-t border-emerald-800/50">
+                            <div class="font-bold text-xs sm:text-sm text-amber-200 font-mono bg-slate-900/90 border border-amber-500/40 rounded-lg px-3 py-1.5 inline-block">
+                                2. ค่า NGL หากไม่มีค่าในไฟล์นำเข้าครั้งแรก ให้ใส่ค่าเป็น "-"
+                            </div>
+                            <div class="text-[11px] text-slate-300 pt-1 space-y-0.5">
+                                <div>• หากช่อง <strong>ระดับ NGL. เริ่มต้น (คอลัมน์ E)</strong> หรือ <strong>ระดับ NGL. สิ้นสุด (คอลัมน์ I)</strong> ในไฟล์นำเข้าว่างเปล่า ระบบจะกำหนดค่าเป็น <strong class="text-amber-300 font-mono">"-"</strong> โดยไม่นำค่า BL. มาใส่แทน</div>
+                                <div>• เมื่อดึงหรือส่งค่าระดับดินเดิมจากส่วนที่ 2 (XY Digitizer) หรือกรอกตัวเลขในภายหลัง ระบบจะคำนวณค่างานดินให้อัตโนมัติ</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="bg-slate-800/95 border-t border-slate-700/80 px-4 py-3 flex flex-wrap justify-between items-center gap-2 shrink-0">
+                <button type="button" id="btnResetCanalDefaults" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600 text-xs font-semibold transition">
+                    ↺ คืนค่ามาตรฐานเริ่มต้น
+                </button>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" id="btnCheckTableMismatchesFromDefaults" class="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow transition flex items-center gap-1">
+                        <span>🔍 ตรวจสอบค่าที่ไม่ตรงกับตาราง</span>
+                    </button>
+                    <button type="button" id="btnSaveCanalDefaultsOnly" class="px-3.5 py-1.5 rounded-xl bg-cyan-700 hover:bg-cyan-600 text-white text-xs font-bold shadow transition">
+                        💾 บันทึกเป็นค่าเริ่มต้น
+                    </button>
+                    <button type="button" id="btnApplyCanalDefaultsToTable" class="px-4 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-lg shadow-emerald-950/60 border border-emerald-400/40 transition flex items-center gap-1.5">
+                        <span>✅ บันทึกและนำไปใช้กับตารางปัจจุบัน</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 7: หน้าต่างแจ้งเตือนเมื่อพบค่าที่กรอกในตารางนำเข้าไม่ตรงกับค่าเริ่มต้นที่กำหนดไว้ (#importMismatchModal) -->
+    <div id="importMismatchModal" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-slate-900 border-2 border-amber-500/80 rounded-2xl max-w-4xl w-full max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
+            <!-- Header -->
+            <div class="bg-slate-800/95 border-b border-slate-700/80 px-4 py-3 flex justify-between items-center gap-3 shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="p-2 rounded-xl bg-amber-950 border border-amber-500/60 text-amber-400 shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-bold text-amber-300 flex items-center gap-2">
+                            <span>แจ้งเตือน: พบค่าที่กรอกในตารางนำเข้าไม่ตรงกับค่าที่กำหนดไว้</span>
+                        </h3>
+                        <p id="importMismatchSubtitle" class="text-[11px] text-slate-300">
+                            กรุณาเลือกค่าที่ต้องการใช้ในการคำนวณ (สามารถเลือกแยกตามหัวข้อ เลือกเป็นรายแถว หรือเลือกใช้ทั้งหมดได้)
+                        </p>
+                    </div>
+                </div>
+                <button type="button" id="btnCloseImportMismatchModal" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition">
+                    ✕ ปิด
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-5 space-y-4 text-xs">
+                <!-- สรุปแยกตามหมวดพารามิเตอร์ที่พบความต่าง -->
+                <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-2.5">
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
+                        <div class="font-bold text-amber-300 text-xs sm:text-sm flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                            <span>1. เลือกค่าที่ต้องการใช้แยกตามรายการพารามิเตอร์ที่พบความต่าง</span>
+                        </div>
+                        <span id="importMismatchSummaryBadge" class="px-2.5 py-0.5 rounded-full bg-amber-950/90 border border-amber-500/50 text-amber-300 font-semibold text-[11px]">
+                            พบ 0 รายการ
+                        </span>
+                    </div>
+                    <div id="importMismatchCategoryCards" class="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- ตารางรายละเอียดรายแถว -->
+                <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-2.5">
+                    <div class="font-bold text-cyan-300 text-xs sm:text-sm flex items-center gap-1.5 border-b border-slate-800 pb-2">
+                        <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                        <span>2. รายละเอียดเปรียบเทียบรายแถว (คลิกสลับเลือกค่าที่ต้องการใช้ในแต่ละแถวได้)</span>
+                    </div>
+                    <div class="overflow-x-auto max-h-64 custom-scrollbar rounded-lg border border-slate-800">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead class="bg-slate-900 text-slate-300 sticky top-0 z-10 border-b border-slate-700">
+                                <tr>
+                                    <th class="py-2 px-2.5 text-center w-14 border-r border-slate-800">แถวที่</th>
+                                    <th class="py-2 px-2.5 text-center w-28 border-r border-slate-800">ช่วง กม.</th>
+                                    <th class="py-2 px-2.5 text-center w-16 border-r border-slate-800">TYPE</th>
+                                    <th class="py-2 px-2.5 border-r border-slate-800">พารามิเตอร์ที่ไม่ตรงกัน</th>
+                                    <th class="py-2 px-2.5 text-right border-r border-slate-800 text-cyan-300">ค่าในตารางนำเข้า</th>
+                                    <th class="py-2 px-2.5 text-right border-r border-slate-800 text-emerald-300">ค่าที่กำหนดไว้ในระบบ</th>
+                                    <th class="py-2 px-2.5 text-center w-48">เลือกค่าที่ต้องการใช้</th>
+                                </tr>
+                            </thead>
+                            <tbody id="importMismatchTableBody" class="divide-y divide-slate-800/80 bg-slate-950/60">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="bg-slate-800/95 border-t border-slate-700/80 px-4 py-3 flex flex-wrap justify-between items-center gap-2 shrink-0">
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" id="btnMismatchKeepAllImported" class="px-3.5 py-1.5 rounded-xl bg-cyan-900/90 hover:bg-cyan-800 text-cyan-100 border border-cyan-500/60 text-xs font-bold shadow transition flex items-center gap-1.5">
+                        <span>📄 ใช้ค่าจากตารางที่นำเข้าทั้งหมด</span>
+                    </button>
+                    <button type="button" id="btnMismatchUseAllDefaults" class="px-3.5 py-1.5 rounded-xl bg-emerald-900/90 hover:bg-emerald-800 text-emerald-100 border border-emerald-500/60 text-xs font-bold shadow transition flex items-center gap-1.5">
+                        <span>⚙️ ใช้ค่าที่กำหนดไว้ในระบบทั้งหมด</span>
+                    </button>
+                </div>
+                <button type="button" id="btnMismatchConfirmSelection" class="px-4 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-xs font-extrabold shadow-lg shadow-amber-950/60 border border-amber-300/60 transition flex items-center gap-1.5">
+                    <span>✅ ยืนยันใช้ค่าตามที่เลือก</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+  <!-- โหลดสคริปต์เรียงตามลำดับความสัมพันธ์ -->
+  <!-- รอบ 30: ใส่ ?v=20261104a เพื่อกันเบราว์เซอร์ใช้ไฟล์ JS เก่าจาก cache
+       (แก้โค้ดแล้วหน้าเว็บไม่เปลี่ยน) — ต้องเพิ่มเลข APP_BUILD ทุกครั้งที่แก้ไฟล์ JS -->
+  <script src="js/state.js?v=20261104a"></script>
+  <!-- ส่วนตาราง: แยกตามแท็บ (เดิมรวมอยู่ใน js/table-render.js ไฟล์เดียว) -->
+  <!-- tab-project.js ต้องโหลดก่อน table-core.js เพราะ renderEstimateSummaryTab ใช้ updateProjectPlanField -->
+  <script src="js/tab-project.js?v=20261104a"></script>
+  <script src="js/table-core.js?v=20261104a"></script>
+  <script src="js/table-sync.js?v=20261104a"></script>
+  <script src="js/tab-ditch.js?v=20261104a"></script>
+  <script src="js/tab-dimension.js?v=20261104a"></script>
+  <script src="js/tab-level.js?v=20261104a"></script>
+  <script src="js/tab-ground.js?v=20261104a"></script>
+  <script src="js/tab-structure.js?v=20261104a"></script>
+  <script src="js/tab-attachment.js?v=20261104a"></script>
+  <script src="js/tab-type.js?v=20261104a"></script>
+  <!-- แท็บย่อยภายใต้เมนูส่วนคำนวณปริมาณ: แยก 1 แท็บ = 1 ไฟล์ -->
+  <script src="js/tab-earthwork.js?v=20261104a"></script>
+  <script src="js/tab-ai-result.js?v=20261104a"></script>
+  <!-- รอบ 41: tab-validate.js ต้องโหลดหลังทุกแท็บ (ใช้ข้อมูลจากทุกแท็บในการตรวจสอบ) -->
+  <script src="js/tab-validate.js?v=20261104a"></script>
+  <script src="js/io-manager.js?v=20261104a"></script>
+  <!-- รอบ 42: หน้าต่าง "ตรวจสอบข้อมูลก่อนส่งออก" (ต้องโหลดหลัง io-manager.js เพราะใช้ buildExportSheetsData) -->
+  <script src="js/tab-export-preview.js?v=20261104a"></script>
+  <!-- รอบ 42: ระบบเครดิต AI + คิวงานอ่านรูปที่ค้างไว้ -->
+  <script src="js/ai-credit.js?v=20261104a"></script>
+  <!-- canvas-viewer.js โหลดทีหลัง เพราะมันเรียก returnToTakeoff/showEstimateSummary ที่อยู่ใน table-core.js -->
+  <script src="js/canvas-viewer.js?v=20261104a"></script>
+  <!-- รอบ 30: ai-reader.js ต้องโหลดหลัง canvas-viewer.js เพราะใช้ aiCurrentSettings/imgScale -->
+  <script src="js/ai-reader.js?v=20261104a"></script>
+  <!-- รอบ 36: autosave.js ต้องโหลดหลังทุกไฟล์ เพราะใช้ buildProjectBackup() / loadProjectDataObject() -->
+  <script src="js/autosave.js?v=20261104a"></script>
+  <script>
+    // เริ่มต้นระบบเมื่อทุกไฟล์โหลดเสร็จ
+    syncSettingsSubTabUI();
+    syncDimensionRowsWithChannels();
+    updateTable();
+    if (typeof updateTopHeaderBanner === 'function') updateTopHeaderBanner();
+    if (typeof updateSideControlStatus === 'function') updateSideControlStatus();
+    if (typeof renderDevBadge === 'function') renderDevBadge();
+    if (typeof initEarthworkSection3 === 'function') initEarthworkSection3();
+    // รอบ 36: เริ่มระบบเชฟอัตโนมัติทุก 5 นาที + ถามกู้คืนข้อมูลสำรอง (ถ้ามี)
+    if (typeof startAutosaveSystem === 'function') startAutosaveSystem();
+    // รอบ 42: โหลดยอดเครดิต AI + คิวงานที่ค้างไว้ และอัปเดตป้ายตัวเลขบนปุ่ม
+    if (typeof loadAiCreditState === 'function') {
+      loadAiCreditState();
+      if (typeof updateAiCreditBadge === 'function') updateAiCreditBadge();
+    }
+  </script>
+</body>
+</html>
