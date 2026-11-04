@@ -164,6 +164,16 @@ function updateTopHeaderBanner(mainTitleOverride, subTitleOverride) {
   if (projLocEl && typeof projectPlanData !== "undefined" && projectPlanData) {
     projLocEl.textContent = "📍 " + (projectPlanData.location || "ไม่ได้ระบุสถานที่");
   }
+
+  // รอบ 60: ซิงก์ชื่อโครงการ/ที่อยู่ไปยังแถบหัวของแท็บ "ส่วนคำนวณปริมาณ" ด้วย
+  const qtyNameEl = document.getElementById("qtyHeaderProjectName");
+  const qtyLocEl = document.getElementById("qtyHeaderProjectLocation");
+  if (qtyNameEl && typeof projectPlanData !== "undefined" && projectPlanData) {
+    qtyNameEl.textContent = projectPlanData.name || "ไม่ได้ระบุชื่อโครงการ";
+  }
+  if (qtyLocEl && typeof projectPlanData !== "undefined" && projectPlanData) {
+    qtyLocEl.textContent = "📍 " + (projectPlanData.location || "ไม่ได้ระบุสถานที่");
+  }
 }
 
 // ส่วนแสดงไฟล์ PDF ถ้าไม่ได้อัปโหลดไฟล์ ไม่ต้องแสดงอะไร (ซ่อนกล่องข้อความเสมอ)

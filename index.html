@@ -23,7 +23,7 @@
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <!-- CSS Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=20261104a">
+  <link rel="stylesheet" href="style.css?v=20261104b">
 </head>
 <body>
 
@@ -95,7 +95,7 @@
 
       <div class="developer-tab" id="devBadge">
         <div class="dev-badge-line1">💻 พัฒนาโดย สจจ.2</div>
-        <div class="dev-badge-version" id="devBadgeVersion">Version 1.0003</div>
+        <div class="dev-badge-version" id="devBadgeVersion">Version 1.0004</div>
       </div>
     </div>
 
@@ -118,12 +118,24 @@
 
     <!-- รอบ 59: หน้าเมนูย่อย "ส่วนคำนวณปริมาณ" พร้อมแท็บ "งานดิน" และนำหลักส่วนที่ 3 ของไฟล์ที่แนบ + ค่าจากส่วนถอดแบบมาใส่ -->
     <div class="structure-calc-page quantity-calc-page" id="quantityCalcPage" style="display: none;">
+      <!-- รอบ 60: แถบหัวแท็บงานดิน แสดงชื่อโครงการ + ที่อยู่ + ระบบเชฟอัตโนมัติ + ปุ่ม Undo/Redo (เหมือนส่วนถอดแบบ) -->
       <div class="structure-calc-top-bar">
         <div class="structure-calc-page-title">
           <span>📐 ส่วนคำนวณปริมาณ</span>
           <span class="structure-calc-page-sub" id="quantityCalcActiveTabTitle">⛰️ งานดิน</span>
         </div>
+        <div class="page-header-project-info qty-project-info" id="qtyProjectInfoBar">
+          <span class="project-info-name" id="qtyHeaderProjectName">โครงการจัดรูปที่ดินระบบคูส่งน้ำสายหลัก</span>
+          <span class="project-info-sep">|</span>
+          <span class="project-info-loc" id="qtyHeaderProjectLocation">📍 ตำบลบ้านใหม่ อำเภอเมือง จังหวัดเชียงใหม่</span>
+        </div>
+        <div class="autosave-status-box" id="qtyAutosaveStatusBox" title="เชฟทุกๆ 10 นาที">
+          <span class="autosave-inline-label">⏱️ ระบบเชฟอัตโนมัติ :</span>
+          <strong id="qtyAutosaveLastTimeText">-</strong>
+        </div>
         <div class="structure-calc-top-actions">
+          <button type="button" class="btn-action ew-btn-soft" id="btnHeaderUndo" onclick="performWorkspaceUndo()" title="ย้อนการทำงานในหน้านี้ (Ctrl+Z)"><span>↩ ยกเลิก</span></button>
+          <button type="button" class="btn-action ew-btn-soft" id="btnHeaderRedo" onclick="performWorkspaceRedo()" title="ทำซ้ำการทำงานในหน้านี้ (Ctrl+Y)"><span>↪ กลับการทำงาน</span></button>
           <button type="button" class="btn-action" id="btnSyncEarthworkFromTakeoffTop" style="background-color: #059669;" onclick="syncEarthworkFromTakeoff(true)" title="ดึงค่าจากส่วนถอดแบบมาคำนวณในแท็บงานดิน">🔄 ดึงค่าจากส่วนถอดแบบ</button>
           <button type="button" class="btn-action" style="background-color: #6c757d;" onclick="copyTableData()">📋 Copy</button>
           <button type="button" class="btn-action" style="background-color: #007bff;" onclick="returnToTakeoff()">กลับสู่ ส่วนถอดแบบ</button>
@@ -167,17 +179,22 @@
                     </div>
                 </div>
 
-                <!-- File Upload / Download Template Buttons (ชิดขอบขวา ความยาวปุ่มเท่ากัน ตามรูป 2) -->
+                <!-- File Upload / Download Template Buttons (รอบ 60: ปุ่มกะทัดรัด ไม่ยืดเต็มความกว้าง + ปุ่ม Undo/Redo) -->
                 <div class="ml-auto shrink-0 self-end xl:self-center flex flex-col items-stretch gap-1.5 w-full sm:w-64">
-                    <button type="button" id="btnPullFromTakeoffSec3" onclick="syncEarthworkFromTakeoff(true)" class="w-full justify-center px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white shadow-lg shadow-indigo-950/50 transition flex items-center gap-1.5" title="ดึงข้อมูลคลองส่งน้ำ คูส่งน้ำ มิติ ระดับคูส่งน้ำ และระดับดินเดิมจากส่วนถอดแบบมาใส่ตารางคำนวณ">
+                    <button type="button" id="btnPullFromTakeoffSec3" onclick="syncEarthworkFromTakeoff(true)" class="ew-btn ew-btn-indigo justify-center px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5" title="ดึงข้อมูลคลองส่งน้ำ คูส่งน้ำ มิติ ระดับคูส่งน้ำ และระดับดินเดิมจากส่วนถอดแบบมาใส่ตารางคำนวณ">
                         <span>🔄 ดึงค่าจากส่วนถอดแบบ</span>
                     </button>
+                    <!-- รอบ 60: ปุ่ม Undo / Redo สำหรับย้อนการทำงานทั้งหมดในหน้านี้ -->
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" id="btnPullUndo" class="ew-btn ew-btn-slate flex-1 justify-center px-2 py-1 rounded-lg text-[11px] font-semibold transition flex items-center justify-center gap-1" onclick="performWorkspaceUndo()" title="ย้อนการทำงานในหน้างานดิน (Ctrl+Z)"><span>↩ ยกเลิก</span></button>
+                        <button type="button" id="btnPullRedo" class="ew-btn ew-btn-slate flex-1 justify-center px-2 py-1 rounded-lg text-[11px] font-semibold transition flex items-center justify-center gap-1" onclick="performWorkspaceRedo()" title="ทำซ้ำการทำงานในหน้างานดิน (Ctrl+Y)"><span>↪ กลับการทำงาน</span></button>
+                    </div>
                     <input type="file" id="uploadExcelInput" accept=".xlsx,.xls,.csv" class="hidden">
-                    <button id="btnUploadExcel" class="w-full justify-center px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white shadow-lg shadow-emerald-950/50 transition flex items-center gap-1.5">
+                    <button id="btnUploadExcel" class="ew-btn ew-btn-emerald justify-center px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                         <span>อัปโหลดไฟล์ Excel (.xlsx / .csv)</span>
                     </button>
-                    <button id="btnDownloadTemplate" class="w-full justify-center px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-xs font-semibold text-white shadow-lg shadow-cyan-950/50 transition flex items-center gap-1.5">
+                    <button id="btnDownloadTemplate" class="ew-btn ew-btn-cyan justify-center px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                         <span>ดาวน์โหลดไฟล์ตัวอย่าง Excel</span>
                     </button>
@@ -248,14 +265,14 @@
                 </div>
             </div>
 
-            <!-- Side-by-Side 2 Cross-Sections Comparison & Active Row Volume Breakdown -->
-            <div class="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
+            <!-- Side-by-Side 2 Cross-Sections Comparison & Active Row Volume Breakdown (รอบ 60: ปรับความสูงให้พอดีกับเนื้อหา ไม่ยืดยาว) -->
+            <div class="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
 
                 <!-- Left & Right Comparison Canvases + Shared Display Controls Bar (ตามรูป 3) -->
                 <div class="xl:col-span-8 flex flex-col gap-2">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 items-stretch">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                         <!-- Left Comparison Canvas: Start Station (กม.เริ่มต้น) -->
-                        <div class="bg-slate-950 rounded-2xl border border-slate-800 flex flex-col overflow-hidden min-h-[390px] relative shadow-xl">
+                        <div class="ew-cmp-canvas-box bg-slate-950 rounded-2xl border border-slate-800 flex flex-col overflow-hidden relative shadow-xl">
                             <div class="bg-slate-900/90 border-b border-slate-800 px-3.5 py-2 flex justify-between items-center z-10">
                                 <div class="flex items-center gap-2">
                                     <span class="px-2 py-0.5 rounded bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 text-xs font-bold">รูปที่ 1 (A1)</span>
@@ -270,11 +287,11 @@
                                 <span>BL.: <strong class="text-slate-500">-</strong></span>
                                 <span>TBL.: <strong class="text-slate-500">-</strong></span>
                             </div>
-                            <canvas id="canvasCompareStart" class="w-full flex-1 cursor-grab active:cursor-grabbing min-h-[325px]"></canvas>
+                            <canvas id="canvasCompareStart" class="ew-cmp-canvas w-full cursor-grab active:cursor-grabbing"></canvas>
                         </div>
 
                         <!-- Right Comparison Canvas: End Station (กม.สิ้นสุด) -->
-                        <div class="bg-slate-950 rounded-2xl border border-slate-800 flex flex-col overflow-hidden min-h-[390px] relative shadow-xl">
+                        <div class="ew-cmp-canvas-box bg-slate-950 rounded-2xl border border-slate-800 flex flex-col overflow-hidden relative shadow-xl">
                             <div class="bg-slate-900/90 border-b border-slate-800 px-3.5 py-2 flex justify-between items-center z-10">
                                 <div class="flex items-center gap-2">
                                     <span class="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/50 text-amber-300 text-xs font-bold">รูปที่ 2 (A2)</span>
@@ -289,7 +306,7 @@
                                 <span>BL.: <strong class="text-slate-500">-</strong></span>
                                 <span>TBL.: <strong class="text-slate-500">-</strong></span>
                             </div>
-                            <canvas id="canvasCompareEnd" class="w-full flex-1 cursor-grab active:cursor-grabbing min-h-[325px]"></canvas>
+                            <canvas id="canvasCompareEnd" class="ew-cmp-canvas w-full cursor-grab active:cursor-grabbing"></canvas>
                         </div>
                     </div>
 
@@ -327,7 +344,7 @@
                 </div>
 
                 <!-- Comparison Data Table for Selected Row (A1, A2, L, Volume = (A1+A2)*0.5*L) -->
-                <div class="xl:col-span-4 bg-slate-900/95 rounded-2xl border border-slate-700/80 p-3.5 flex flex-col justify-between shadow-xl">
+                <div class="ew-side-panel xl:col-span-4 bg-slate-900/95 rounded-2xl border border-slate-700/80 p-3.5 flex flex-col justify-start shadow-xl">
                     <div class="space-y-2.5">
                         <div class="flex flex-wrap justify-between items-center gap-2 border-b border-slate-800 pb-2">
                             <div>
@@ -408,11 +425,17 @@
                     <div class="flex items-center justify-between gap-1.5 flex-nowrap overflow-x-auto custom-scrollbar w-full bg-slate-900/80 px-2.5 py-1.5 rounded-xl border border-slate-800">
                         <!-- กลุ่มปุ่มเรียงชิดซ้ายในแถวเดียว -->
                         <div class="flex items-center gap-1.5 flex-nowrap shrink-0">
-                            <!-- Column Visibility Button (A-U) -->
-                            <button type="button" id="btnToggleColumnVisibility" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-cyan-300 border border-cyan-500/50 font-semibold transition flex items-center gap-1 shadow whitespace-nowrap shrink-0" title="ตั้งค่าซ่อน/แสดงคอลัมน์ A ถึง U">
-                                <svg class="w-3.5 h-3.5 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                                <span id="lblColVisibilityBtn">👁️ ซ่อน/แสดงคอลัมน์ A-U</span>
-                            </button>
+                            <!-- รอบ 60: ปุ่มซ่อน/แสดงคอลัมน์ + ดรอปดิพแสดงเฉพาะสาย (อยู่ใต้ปุ่ม) -->
+                            <div class="flex flex-col items-stretch gap-1 shrink-0">
+                                <button type="button" id="btnToggleColumnVisibility" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-cyan-300 border border-cyan-500/50 font-semibold transition flex items-center gap-1 shadow whitespace-nowrap shrink-0" title="ตั้งค่าซ่อน/แสดงคอลัมน์ A ถึง U">
+                                    <svg class="w-3.5 h-3.5 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                    <span id="lblColVisibilityBtn">👁️ ซ่อน/แสดงคอลัมน์ A-U</span>
+                                </button>
+                                <!-- รอบ 60: ดรอปลิดเลือกแสดงเฉพาะสายคูส่งน้ำ หรือทั้งหมด -->
+                                <select id="selectCanalLineFilter" onchange="applyCanalLineFilter(this.value)" class="ew-select text-[11px] px-1.5 py-0.5 rounded-md font-semibold" title="เลือกแสดงเฉพาะสายคูส่งน้ำ หรือแสดงทั้งหมด">
+                                    <option value="all">แสดงทั้งหมด (ทุกสาย)</option>
+                                </select>
+                            </div>
 
                             <!-- Toggle 14 Node Coordinates in Table -->
                             <button type="button" id="btnToggleNodeCoordsCols" class="px-2 py-1 rounded-lg bg-emerald-950/80 hover:bg-emerald-900/80 text-[11px] text-emerald-300 border border-emerald-500/50 font-semibold transition flex items-center gap-1 shadow whitespace-nowrap shrink-0" title="ตัวเลือกซ่อน/แสดงคอลัมน์ จุด 1-14 (กม.เริ่มต้น และ กม.สิ้นสุด)">
@@ -539,7 +562,7 @@
                 </div>
 
                 <!-- Station Subdivision & Zero-Area Transition Split Toolbar (ย้ายมาไว้ด้านล่างตาราง ตามรูป 1) -->
-                <div class="bg-slate-900/95 border border-cyan-500/40 rounded-xl p-3 space-y-2.5 text-xs shadow-lg">
+                <div id="ewBottomToolbar" class="bg-slate-900/95 border border-cyan-500/40 rounded-xl p-3 space-y-2.5 text-xs shadow-lg">
                     <!-- Row 1: 3 Card Blocks Matching Row 2 Style -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
                         <!-- บล็อกที่ 1: แบ่ง กม. ออกเป็นทุกๆ X ม. -->
@@ -1526,37 +1549,37 @@
 
 
   <!-- โหลดสคริปต์เรียงตามลำดับความสัมพันธ์ -->
-  <!-- รอบ 30: ใส่ ?v=20261104a เพื่อกันเบราว์เซอร์ใช้ไฟล์ JS เก่าจาก cache
+  <!-- รอบ 30: ใส่ ?v=20261104b เพื่อกันเบราว์เซอร์ใช้ไฟล์ JS เก่าจาก cache
        (แก้โค้ดแล้วหน้าเว็บไม่เปลี่ยน) — ต้องเพิ่มเลข APP_BUILD ทุกครั้งที่แก้ไฟล์ JS -->
-  <script src="js/state.js?v=20261104a"></script>
+  <script src="js/state.js?v=20261104b"></script>
   <!-- ส่วนตาราง: แยกตามแท็บ (เดิมรวมอยู่ใน js/table-render.js ไฟล์เดียว) -->
   <!-- tab-project.js ต้องโหลดก่อน table-core.js เพราะ renderEstimateSummaryTab ใช้ updateProjectPlanField -->
-  <script src="js/tab-project.js?v=20261104a"></script>
-  <script src="js/table-core.js?v=20261104a"></script>
-  <script src="js/table-sync.js?v=20261104a"></script>
-  <script src="js/tab-ditch.js?v=20261104a"></script>
-  <script src="js/tab-dimension.js?v=20261104a"></script>
-  <script src="js/tab-level.js?v=20261104a"></script>
-  <script src="js/tab-ground.js?v=20261104a"></script>
-  <script src="js/tab-structure.js?v=20261104a"></script>
-  <script src="js/tab-attachment.js?v=20261104a"></script>
-  <script src="js/tab-type.js?v=20261104a"></script>
+  <script src="js/tab-project.js?v=20261104b"></script>
+  <script src="js/table-core.js?v=20261104b"></script>
+  <script src="js/table-sync.js?v=20261104b"></script>
+  <script src="js/tab-ditch.js?v=20261104b"></script>
+  <script src="js/tab-dimension.js?v=20261104b"></script>
+  <script src="js/tab-level.js?v=20261104b"></script>
+  <script src="js/tab-ground.js?v=20261104b"></script>
+  <script src="js/tab-structure.js?v=20261104b"></script>
+  <script src="js/tab-attachment.js?v=20261104b"></script>
+  <script src="js/tab-type.js?v=20261104b"></script>
   <!-- แท็บย่อยภายใต้เมนูส่วนคำนวณปริมาณ: แยก 1 แท็บ = 1 ไฟล์ -->
-  <script src="js/tab-earthwork.js?v=20261104a"></script>
-  <script src="js/tab-ai-result.js?v=20261104a"></script>
+  <script src="js/tab-earthwork.js?v=20261104b"></script>
+  <script src="js/tab-ai-result.js?v=20261104b"></script>
   <!-- รอบ 41: tab-validate.js ต้องโหลดหลังทุกแท็บ (ใช้ข้อมูลจากทุกแท็บในการตรวจสอบ) -->
-  <script src="js/tab-validate.js?v=20261104a"></script>
-  <script src="js/io-manager.js?v=20261104a"></script>
+  <script src="js/tab-validate.js?v=20261104b"></script>
+  <script src="js/io-manager.js?v=20261104b"></script>
   <!-- รอบ 42: หน้าต่าง "ตรวจสอบข้อมูลก่อนส่งออก" (ต้องโหลดหลัง io-manager.js เพราะใช้ buildExportSheetsData) -->
-  <script src="js/tab-export-preview.js?v=20261104a"></script>
+  <script src="js/tab-export-preview.js?v=20261104b"></script>
   <!-- รอบ 42: ระบบเครดิต AI + คิวงานอ่านรูปที่ค้างไว้ -->
-  <script src="js/ai-credit.js?v=20261104a"></script>
+  <script src="js/ai-credit.js?v=20261104b"></script>
   <!-- canvas-viewer.js โหลดทีหลัง เพราะมันเรียก returnToTakeoff/showEstimateSummary ที่อยู่ใน table-core.js -->
-  <script src="js/canvas-viewer.js?v=20261104a"></script>
+  <script src="js/canvas-viewer.js?v=20261104b"></script>
   <!-- รอบ 30: ai-reader.js ต้องโหลดหลัง canvas-viewer.js เพราะใช้ aiCurrentSettings/imgScale -->
-  <script src="js/ai-reader.js?v=20261104a"></script>
+  <script src="js/ai-reader.js?v=20261104b"></script>
   <!-- รอบ 36: autosave.js ต้องโหลดหลังทุกไฟล์ เพราะใช้ buildProjectBackup() / loadProjectDataObject() -->
-  <script src="js/autosave.js?v=20261104a"></script>
+  <script src="js/autosave.js?v=20261104b"></script>
   <script>
     // เริ่มต้นระบบเมื่อทุกไฟล์โหลดเสร็จ
     syncSettingsSubTabUI();

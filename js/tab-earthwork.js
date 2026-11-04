@@ -690,6 +690,73 @@ function getUniqueCanalLinesFromBoqTable() {
     return Array.from(map.values());
 }
 
+// ============================================================================
+// รอบ 60: ตัวกรองสายคูส่งน้ำ + ย่อ/ขยายข้อมูลรายสายในตาราง BoQ
+// ============================================================================
+let activeCanalLineFilter = 'all';                 // 'all' หรือ lineKey ของสายคูส่งน้ำที่เลือก
+const collapsedCanalLines = new Set();             // lineKey ของสายที่ถูกย่อไว้
+
+function getCanalLineFilterOptions() {
+    return getUniqueCanalLinesFromBoqTable();
+}
+
+/** เติมตัวเลือกลงในดรอปลิด #selectCanalLineFilter (ใต้ปุ่มซ่อน/แสดงคอลัมน์) */
+function updateCanalLineFilterOptions() {
+    const sel = document.getElementById('selectCanalLineFilter');
+    if (!sel) return;
+    const options = getCanalLineFilterOptions();
+    const prevValue = activeCanalLineFilter;
+
+    const buildLabel = (o) => {
+        const order = options.indexOf(o) + 1;
+        return `สายที่ ${order}: คลอง ${o.canalName} • คูส่งน้ำ ${o.subCanalName} (${o.rowCount} แถว)`;
+    };
+
+    sel.innerHTML = `<option value="all">แสดงทั้งหมด (ทุกสาย • ${options.length} สาย)</option>`
+        + options.map(o => `<option value="${ewEscapeAttr(o.lineKey)}">${ewEscapeHtml(buildLabel(o))}</option>`).join('');
+
+    // ถ้าสายที่เคยเลือกหายไป ให้กลับไปแสดงทั้งหมด
+    const exists = prevValue === 'all' || options.some(o => o.lineKey === prevValue);
+    activeCanalLineFilter = exists ? prevValue : 'all';
+    sel.value = activeCanalLineFilter;
+}
+
+function ewEscapeAttr(v) {
+    return String(v ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function ewEscapeHtml(v) {
+    return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** เรียกจาก onchange ของดรอปลิด */
+function applyCanalLineFilter(lineKey) {
+    activeCanalLineFilter = (lineKey === 'all' || !lineKey) ? 'all' : String(lineKey);
+    const sel = document.getElementById('selectCanalLineFilter');
+    if (sel) sel.value = activeCanalLineFilter;
+    // ตัดสายที่ถูกย่อไว้ออกจากรายการย่อ เพื่อไม่ให้ค้างกับสายที่ไม่ได้แสดง
+    if (activeCanalLineFilter !== 'all') {
+        collapsedCanalLines.delete(activeCanalLineFilter);
+    }
+    renderBoqTable();
+}
+
+/** สลับสถานะย่อ/ขยายของสายคูส่งน้ำที่ระบุ */
+function toggleCanalLineCollapse(lineKey) {
+    const key = String(lineKey ?? '');
+    if (!key) return;
+    if (collapsedCanalLines.has(key)) {
+        collapsedCanalLines.delete(key);
+    } else {
+        collapsedCanalLines.add(key);
+    }
+    renderBoqTable();
+}
+
+function isCanalLineCollapsed(lineKey) {
+    return collapsedCanalLines.has(String(lineKey ?? ''));
+}
+
 function updateSavedNglLinesBadgeUI() {
     const badge = document.getElementById('badgeSavedNglLinesCount');
     if (badge) {
@@ -3304,13 +3371,14 @@ function recalculateSectionNumbersByCanalLine(rowsArr) {
 }
 
 // ชุดสีพื้นหลังของแต่ละ "ช่วงคูส่งน้ำ" (sectionNo) เพื่อให้เกิดความแตกต่างชัดเจน
+// รอบ 60: เปลี่ยนพื้นหลังแถวจากโทนมืด (ทึบ/เข้ม) เป็นโทนอ่อนโปร่ง (พาสเทล) ให้เข้ากับธีมสว่าง
 const SECTION_COLOR_PALETTE = [
     {
         name: 'sky',
         rowCls: 'bg-sky-950/40 hover:bg-sky-900/55 transition cursor-pointer',
         selectedCls: 'bg-sky-900/75 ring-2 ring-inset ring-cyan-400 font-medium shadow-lg transition cursor-pointer',
-        rowStyle: 'background-color: rgba(12, 74, 110, 0.34);',
-        selectedStyle: 'background-color: rgba(3, 105, 161, 0.48);',
+        rowStyle: 'background-color: rgba(224, 242, 254, 0.65);',
+        selectedStyle: 'background-color: rgba(186, 230, 253, 0.88);',
         leftBorderCls: 'border-l-4 border-l-sky-400',
         secInputCls: 'bg-sky-500/25 text-sky-200 ring-1 ring-inset ring-sky-400/70 font-extrabold',
         printBg: '#f0f9ff',
@@ -3320,8 +3388,8 @@ const SECTION_COLOR_PALETTE = [
         name: 'emerald',
         rowCls: 'bg-emerald-950/40 hover:bg-emerald-900/55 transition cursor-pointer',
         selectedCls: 'bg-emerald-900/75 ring-2 ring-inset ring-cyan-400 font-medium shadow-lg transition cursor-pointer',
-        rowStyle: 'background-color: rgba(6, 78, 59, 0.34);',
-        selectedStyle: 'background-color: rgba(4, 120, 87, 0.48);',
+        rowStyle: 'background-color: rgba(209, 250, 229, 0.65);',
+        selectedStyle: 'background-color: rgba(167, 243, 208, 0.88);',
         leftBorderCls: 'border-l-4 border-l-emerald-400',
         secInputCls: 'bg-emerald-500/25 text-emerald-200 ring-1 ring-inset ring-emerald-400/70 font-extrabold',
         printBg: '#ecfdf5',
@@ -3331,8 +3399,8 @@ const SECTION_COLOR_PALETTE = [
         name: 'amber',
         rowCls: 'bg-amber-950/35 hover:bg-amber-900/50 transition cursor-pointer',
         selectedCls: 'bg-amber-900/70 ring-2 ring-inset ring-cyan-400 font-medium shadow-lg transition cursor-pointer',
-        rowStyle: 'background-color: rgba(120, 53, 15, 0.30);',
-        selectedStyle: 'background-color: rgba(180, 83, 9, 0.45);',
+        rowStyle: 'background-color: rgba(255, 247, 237, 0.70);',
+        selectedStyle: 'background-color: rgba(253, 230, 138, 0.85);',
         leftBorderCls: 'border-l-4 border-l-amber-400',
         secInputCls: 'bg-amber-500/25 text-amber-200 ring-1 ring-inset ring-amber-400/70 font-extrabold',
         printBg: '#fffbeb',
@@ -3342,8 +3410,8 @@ const SECTION_COLOR_PALETTE = [
         name: 'purple',
         rowCls: 'bg-purple-950/40 hover:bg-purple-900/55 transition cursor-pointer',
         selectedCls: 'bg-purple-900/75 ring-2 ring-inset ring-cyan-400 font-medium shadow-lg transition cursor-pointer',
-        rowStyle: 'background-color: rgba(88, 28, 135, 0.32);',
-        selectedStyle: 'background-color: rgba(126, 34, 206, 0.46);',
+        rowStyle: 'background-color: rgba(250, 245, 255, 0.68);',
+        selectedStyle: 'background-color: rgba(233, 213, 254, 0.88);',
         leftBorderCls: 'border-l-4 border-l-purple-400',
         secInputCls: 'bg-purple-500/25 text-purple-200 ring-1 ring-inset ring-purple-400/70 font-extrabold',
         printBg: '#faf5ff',
@@ -3353,8 +3421,8 @@ const SECTION_COLOR_PALETTE = [
         name: 'rose',
         rowCls: 'bg-rose-950/35 hover:bg-rose-900/50 transition cursor-pointer',
         selectedCls: 'bg-rose-900/70 ring-2 ring-inset ring-cyan-400 font-medium shadow-lg transition cursor-pointer',
-        rowStyle: 'background-color: rgba(136, 19, 55, 0.30);',
-        selectedStyle: 'background-color: rgba(190, 18, 60, 0.45);',
+        rowStyle: 'background-color: rgba(255, 241, 242, 0.68);',
+        selectedStyle: 'background-color: rgba(254, 205, 211, 0.85);',
         leftBorderCls: 'border-l-4 border-l-rose-400',
         secInputCls: 'bg-rose-500/25 text-rose-200 ring-1 ring-inset ring-rose-400/70 font-extrabold',
         printBg: '#fff1f2',
@@ -3364,8 +3432,8 @@ const SECTION_COLOR_PALETTE = [
         name: 'indigo',
         rowCls: 'bg-indigo-950/40 hover:bg-indigo-900/55 transition cursor-pointer',
         selectedCls: 'bg-indigo-900/75 ring-2 ring-inset ring-cyan-400 font-medium shadow-lg transition cursor-pointer',
-        rowStyle: 'background-color: rgba(49, 46, 129, 0.34);',
-        selectedStyle: 'background-color: rgba(67, 56, 202, 0.48);',
+        rowStyle: 'background-color: rgba(238, 242, 255, 0.68);',
+        selectedStyle: 'background-color: rgba(199, 210, 254, 0.88);',
         leftBorderCls: 'border-l-4 border-l-indigo-400',
         secInputCls: 'bg-indigo-500/25 text-indigo-200 ring-1 ring-inset ring-indigo-400/70 font-extrabold',
         printBg: '#eef2ff',
@@ -8110,21 +8178,45 @@ function renderBoqTable() {
 
     let currentLineOrder = 0;
 
-    tbody.innerHTML = boqRows.map((row, rIdx) => {
+    // รอบ 60: คำนวณยอดรวมจากทุกแถว (ไม่ได้กรอง) แล้วค่อยกรอง/ย่อสายตอน render
+    boqRows.forEach((row) => {
         const ev = evaluateBoqRow(row);
         totalLengthL = roundLen(totalLengthL + ev.L);
         WORK_CATEGORIES.forEach(cat => {
             totalsByCat[cat.key] = roundVol(totalsByCat[cat.key] + ev.calcByCat[cat.key].vol);
         });
+    });
+
+    // รอบ 60: สร้างรายการแถวที่จะแสดง (กรองตามสาย + ย่อ/ขยายสาย) โดยยังคงดัชนีเดิม rIdx
+    const renderedEntries = [];
+    boqRows.forEach((row, rIdx) => {
+        const lKey = makeCanalLineKey(row.canalName, row.subCanalName);
+        if (activeCanalLineFilter !== 'all' && lKey !== activeCanalLineFilter) return;
+        if (collapsedCanalLines.has(lKey)) {
+            // สายที่ย่อไว้: แสดงเฉพาะแถวหัวป้ายชื่อสาย (พร้อมปุ่มขยาย) ไม่แสดงแถวข้อมูล
+            const alreadyAdded = renderedEntries.some(e => e.isCollapsedLine && e.lineKey === lKey);
+            if (!alreadyAdded) {
+                renderedEntries.push({ isCollapsedLine: true, lineKey: lKey, row: row, rIdx: rIdx });
+            }
+            return;
+        }
+        renderedEntries.push({ row: row, rIdx: rIdx, lineKey: lKey });
+    });
+
+    tbody.innerHTML = renderedEntries.map((entry, visIdx) => {
+        const row = entry.row;
+        const rIdx = entry.rIdx;
+        const ev = evaluateBoqRow(row);
 
         const isSelected = rIdx === selectedRowIndex;
         const theme = getRowSplitTheme(row);
         const pal = getSectionColorPaletteItem(row.sectionNo);
 
-        const curLineKey = makeCanalLineKey(row.canalName, row.subCanalName);
-        const prevRow = rIdx > 0 ? boqRows[rIdx - 1] : null;
-        const prevLineKey = prevRow ? makeCanalLineKey(prevRow.canalName, prevRow.subCanalName) : null;
-        const isNewCanalLine = (rIdx === 0 || curLineKey !== prevLineKey);
+        const curLineKey = entry.lineKey;
+        const prevEntry = visIdx > 0 ? renderedEntries[visIdx - 1] : null;
+        const prevRow = prevEntry ? prevEntry.row : null;
+        const prevLineKey = prevEntry ? prevEntry.lineKey : null;
+        const isNewCanalLine = (prevEntry === null || curLineKey !== prevLineKey);
         const isNewSectionInSameLine = (!isNewCanalLine && prevRow && String(row.sectionNo) !== String(prevRow.sectionNo));
 
         let topBorderCls = '';
@@ -8141,21 +8233,33 @@ function renderBoqTable() {
         if (isNewCanalLine) {
             currentLineOrder++;
             const lInfo = lineSummaryByKey.get(curLineKey) || { canalName: row.canalName || '-', subCanalName: row.subCanalName || '-', minSta: 0, maxSta: 0, rowCount: 1, secSet: new Set(['1']) };
-            const topSepStyle = rIdx > 0 ? 'border-top: 3px solid #06b6d4;' : '';
+            const topSepStyle = visIdx > 0 ? 'border-top: 3px solid #06b6d4;' : '';
+            const isCollapsed = isCanalLineCollapsed(curLineKey);
+            const toggleLabel = isCollapsed ? 'ขยายข้อมูลสายนี้' : 'ย่อข้อมูลสายนี้';
+            const toggleTitle = isCollapsed ? 'คลิกเพื่อขยายดูข้อมูลทั้งหมดของสายคูส่งน้ำนี้' : 'คลิกเพื่อย่อ/ซ่อนข้อมูลของสายคูส่งน้ำนี้';
             dividerRowHtml = `
                 <tr class="canal-line-divider-row select-none bg-slate-900/95 border-b border-cyan-500/50" style="${topSepStyle}">
                     <td colspan="${totalAllCols}" class="py-1.5 px-3 text-left text-xs font-bold text-cyan-200 bg-gradient-to-r from-cyan-950/95 via-slate-900/95 to-slate-900/90">
                         <div class="flex items-center gap-2 flex-wrap">
+                            <button type="button" class="ew-line-toggle-btn" data-line-key="${ewEscapeAttr(curLineKey)}" onclick="toggleCanalLineCollapse('${ewEscapeAttr(curLineKey)}')" title="${toggleTitle}" aria-expanded="${isCollapsed ? 'false' : 'true'}">
+                                <span class="ew-line-toggle-icon">${isCollapsed ? '▸' : '▾'}</span>
+                                <span>${toggleLabel}</span>
+                            </button>
                             <span class="px-2 py-0.5 rounded bg-cyan-600 text-white text-[11px] font-extrabold shadow">สายคูส่งน้ำที่ ${currentLineOrder}</span>
                             <span>คลองส่งน้ำ: <strong class="text-white">${lInfo.canalName}</strong></span>
                             <span class="text-slate-500">•</span>
                             <span>คูส่งน้ำ: <strong class="text-emerald-300">${lInfo.subCanalName}</strong></span>
                             <span class="text-slate-500">•</span>
-                            <span class="text-slate-300 font-mono text-[11px]">กม. ${formatMetersToStation(lInfo.minSta)} – ${formatMetersToStation(lInfo.maxSta)} (${lInfo.secSet.size} ช่วงคูส่งน้ำ • ${lInfo.rowCount} แถว)</span>
+                            <span class="text-slate-300 font-mono text-[11px]">กม. ${formatMetersToStation(lInfo.minSta)} – ${formatMetersToStation(lInfo.maxSta)} (${lInfo.secSet.size} ช่วงคูส่งน้ำ • ${lInfo.rowCount} แถว)${isCollapsed ? ' • <span class="text-amber-300 font-bold">[ย่ออยู่]</span>' : ''}</span>
                         </div>
                     </td>
                 </tr>
             `;
+        }
+
+        // รอบ 60: ถ้าสายนี้ถูกย่อไว้ ให้แสดงเฉพาะแถวหัวป้ายชื่อสาย (ไม่แสดงแถวข้อมูล)
+        if (entry.isCollapsedLine) {
+            return dividerRowHtml;
         }
 
         let cellsHtml = `<td class="py-1.5 px-2 text-center font-bold text-slate-300 border-r border-slate-800 sticky left-0 bg-slate-900/95 z-10 ${pal.leftBorderCls}">${rIdx + 1}</td>`;
@@ -8282,6 +8386,8 @@ function renderBoqTable() {
     updateColVisibilityButtonBadge();
     updateNodeCoordsToggleBtnUI();
     if (typeof syncWorkCategoryToggleButtonsUI === 'function') syncWorkCategoryToggleButtonsUI();
+    // รอบ 60: อัปเดตตัวเลือกสายคูส่งน้ำในดรอปลิด
+    updateCanalLineFilterOptions();
 }
 
 function refreshRowCalculationsInDOM(rIdx) {

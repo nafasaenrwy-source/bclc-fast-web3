@@ -5058,3 +5058,386 @@ textarea.validation-error-cell {
             }
         }
     
+
+
+/* ==========================================================================
+   ROUND 60 - UI tweaks for the Earthwork tab (Quantity Calculation)
+   ========================================================================== */
+
+/* ==========================================================================
+   รอบ 60 — ปรับ UI แท็บ "⛰️ งานดิน" (ส่วนคำนวณปริมาณ)
+   1) ปุ่มยาว / หน้าจอขาว  → ปุ่มกะทัดรัด + ธีมโปร่งสีอ่อน
+   2) พื้นหลังสีดำ            → เปลี่ยนเป็นสีอ่อนโปร่งทั้งหมด
+   3) รูปตัด 2 ชุด + แท็บขวา  → ปรับความสูงให้พอดีกับเนื้อหา
+   4) ปุ่มในตาราง/ด้านล่าง     → รูปแบบเดียวกัน (.ew-btn) สีอ่อนโปร่ง
+   5) ดรอปลิดเลือกสาย + ปุ่มย่อ/ขยายสายคูส่งน้ำ
+   ========================================================================== */
+
+/* ---------- 4.1) ปุ่มมาตรฐานสีอ่อนโปร่ง (.ew-btn) ---------- */
+#quantityCalcPage .ew-btn,
+#quantityCalcPage button.ew-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  line-height: 1.2;
+  border: 1px solid rgba(148, 163, 184, 0.55) !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+  color: #334155 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06) !important;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+#quantityCalcPage .ew-btn:hover,
+#quantityCalcPage button.ew-btn:hover {
+  background: rgba(255, 255, 255, 0.94) !important;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12) !important;
+}
+#quantityCalcPage .ew-btn:active,
+#quantityCalcPage button.ew-btn:active {
+  transform: translateY(1px);
+}
+#quantityCalcPage .ew-btn span,
+#quantityCalcPage button.ew-btn span {
+  color: inherit !important;
+}
+
+/* เฉดสีของปุ่ม (โปร่ง เบามาก แต่ยังแยกโทนกันได้) */
+#quantityCalcPage .ew-btn-indigo,
+#quantityCalcPage button.ew-btn-indigo {
+  background: rgba(224, 231, 255, 0.80) !important;
+  border-color: rgba(99, 102, 241, 0.45) !important;
+  color: #3730a3 !important;
+}
+#quantityCalcPage .ew-btn-indigo:hover,
+#quantityCalcPage button.ew-btn-indigo:hover { background: rgba(199, 210, 254, 0.92) !important; }
+
+#quantityCalcPage .ew-btn-emerald,
+#quantityCalcPage button.ew-btn-emerald {
+  background: rgba(209, 250, 229, 0.82) !important;
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  color: #065f46 !important;
+}
+#quantityCalcPage .ew-btn-emerald:hover,
+#quantityCalcPage button.ew-btn-emerald:hover { background: rgba(167, 243, 208, 0.92) !important; }
+
+#quantityCalcPage .ew-btn-cyan,
+#quantityCalcPage button.ew-btn-cyan {
+  background: rgba(207, 250, 254, 0.82) !important;
+  border-color: rgba(6, 182, 212, 0.45) !important;
+  color: #0e7490 !important;
+}
+#quantityCalcPage .ew-btn-cyan:hover,
+#quantityCalcPage button.ew-btn-cyan:hover { background: rgba(165, 243, 252, 0.92) !important; }
+
+#quantityCalcPage .ew-btn-slate,
+#quantityCalcPage button.ew-btn-slate {
+  background: rgba(248, 250, 252, 0.85) !important;
+  border-color: rgba(148, 163, 184, 0.55) !important;
+  color: #475569 !important;
+}
+#quantityCalcPage .ew-btn-slate:hover,
+#quantityCalcPage button.ew-btn-slate:hover { background: rgba(255, 255, 255, 0.95) !important; }
+
+#quantityCalcPage .ew-btn-amber,
+#quantityCalcPage button.ew-btn-amber {
+  background: rgba(255, 247, 237, 0.85) !important;
+  border-color: rgba(245, 158, 11, 0.45) !important;
+  color: #b45309 !important;
+}
+#quantityCalcPage .ew-btn-teal,
+#quantityCalcPage button.ew-btn-teal {
+  background: rgba(240, 253, 250, 0.85) !important;
+  border-color: rgba(20, 184, 166, 0.45) !important;
+  color: #0f766e !important;
+}
+#quantityCalcPage .ew-btn-rose,
+#quantityCalcPage button.ew-btn-rose {
+  background: rgba(255, 241, 242, 0.85) !important;
+  border-color: rgba(244, 63, 94, 0.42) !important;
+  color: #be123c !important;
+}
+#quantityCalcPage .ew-btn-purple,
+#quantityCalcPage button.ew-btn-purple {
+  background: rgba(250, 245, 255, 0.85) !important;
+  border-color: rgba(168, 85, 247, 0.42) !important;
+  color: #6b21a8 !important;
+}
+#quantityCalcPage .ew-btn-orange,
+#quantityCalcPage button.ew-btn-orange {
+  background: rgba(255, 247, 237, 0.85) !important;
+  border-color: rgba(249, 115, 22, 0.42) !important;
+  color: #c2410c !important;
+}
+
+/* ปุ่มในแถบหัวของแท็บงานดิน (ปุ่มสีอ่อนโปร่ง) */
+#quantityCalcPage .ew-btn-soft,
+#quantityCalcPage button.ew-btn-soft {
+  background: rgba(231, 241, 255, 0.85) !important;
+  border: 1px solid rgba(59, 130, 246, 0.35) !important;
+  color: #1d4ed8 !important;
+  box-shadow: none !important;
+}
+#quantityCalcPage .ew-btn-soft:hover,
+#quantityCalcPage button.ew-btn-soft:hover { background: rgba(219, 234, 254, 0.95) !important; }
+
+/* ---------- 4.2) ปุ่มด้านล่างทั้งหมดให้เป็นรูปแบบเดียวกัน ---------- */
+#quantityCalcPage #ewBottomToolbar button {
+  background: rgba(255, 255, 255, 0.72) !important;
+  border: 1px solid rgba(148, 163, 184, 0.5) !important;
+  color: #334155 !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06) !important;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+#quantityCalcPage #ewBottomToolbar button:hover {
+  background: rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.10) !important;
+}
+#quantityCalcPage #ewBottomToolbar button span { color: inherit !important; }
+
+/* ---------- 5.1) ดรอปลิดเลือกสายคูส่งน้ำ ---------- */
+#quantityCalcPage .ew-select,
+#quantityCalcPage select.ew-select {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  color: #1e293b !important;
+  border: 1px solid rgba(148, 163, 184, 0.6) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06) !important;
+  max-width: 100%;
+  cursor: pointer;
+}
+#quantityCalcPage .ew-select:focus,
+#quantityCalcPage select.ew-select:focus {
+  outline: none !important;
+  border-color: #0ea5e9 !important;
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.18) !important;
+}
+
+/* ---------- 5.2) ปุ่มย่อ/ขยายข้อมูลสายคูส่งน้ำ ---------- */
+#quantityCalcPage .ew-line-toggle-btn,
+#quantityCalcPage button.ew-line-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  background: rgba(224, 242, 254, 0.9) !important;
+  border: 1px solid rgba(14, 165, 233, 0.5) !important;
+  color: #075985 !important;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+#quantityCalcPage .ew-line-toggle-btn:hover,
+#quantityCalcPage button.ew-line-toggle-btn:hover {
+  background: rgba(186, 230, 253, 0.95) !important;
+  box-shadow: 0 1px 4px rgba(14, 165, 233, 0.25);
+}
+#quantityCalcPage .ew-line-toggle-icon {
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* ---------- 2) พื้นหลังสีดำ → สีอ่อนโปร่ง ---------- */
+/* แถบหัว + แถบเครื่องมือของส่วนที่ 3 */
+#quantityCalcPage #cmpDisplayControlsBar {
+  background: rgba(255, 255, 255, 0.80) !important;
+  border: 1px solid rgba(148, 163, 184, 0.45) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08) !important;
+}
+#quantityCalcPage #cmpDisplayControlsBar button {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border: 1px solid rgba(148, 163, 184, 0.45) !important;
+  color: #334155 !important;
+  border-radius: 8px !important;
+}
+#quantityCalcPage #cmpDisplayControlsBar button:hover {
+  background: rgba(255, 255, 255, 0.96) !important;
+}
+
+/* แถบควบคุมตาราง (แถวปุ่มซ่อน/แสดงคอลัมน์) */
+#quantityCalcPage #sectionExternalData .bg-slate-900\/80 {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border-color: rgba(148, 163, 184, 0.4) !important;
+}
+
+/* กล่องเครื่องมือซ้าย */
+#quantityCalcPage #colVisibilityCheckboxContainer {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border: 1px solid rgba(148, 163, 184, 0.45) !important;
+}
+
+/* แถบเครื่องมือด้านล่างของตาราง */
+#quantityCalcPage #ewBottomToolbar {
+  background: rgba(255, 255, 255, 0.72) !important;
+  border: 1px solid rgba(148, 163, 184, 0.45) !important;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.07) !important;
+}
+#quantityCalcPage #ewBottomToolbar > div > div {
+  background: rgba(248, 250, 252, 0.75) !important;
+  border-color: rgba(148, 163, 184, 0.4) !important;
+}
+
+/* ตัวควบคุมตาราง BoQ */
+#quantityCalcPage #boqTableContainer {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(203, 213, 225, 0.9) !important;
+}
+
+/* แถวหัวป้ายชื่อสายคูส่งน้ำ */
+#quantityCalcPage .canal-line-divider-row {
+  background: rgba(236, 254, 255, 0.95) !important;
+  border-bottom: 1px solid rgba(14, 165, 233, 0.4) !important;
+}
+#quantityCalcPage .canal-line-divider-row > td {
+  background: linear-gradient(90deg, rgba(224, 242, 254, 0.95) 0%, rgba(240, 253, 250, 0.85) 55%, rgba(255, 255, 255, 0.7) 100%) !important;
+  color: #0f172a !important;
+}
+#quantityCalcPage .canal-line-divider-row .text-white { color: #1e293b !important; }
+#quantityCalcPage .canal-line-divider-row .text-cyan-200 { color: #0e7490 !important; }
+#quantityCalcPage .canal-line-divider-row .text-emerald-300 { color: #047857 !important; }
+#quantityCalcPage .canal-line-divider-row .text-slate-300 { color: #475569 !important; }
+#quantityCalcPage .canal-line-divider-row .text-slate-500 { color: #64748b !important; }
+
+/* ---------- 3) รูปตัด 2 ชุด + แท็บขวา: สูงพอดีกับเนื้อหา ---------- */
+#quantityCalcPage .ew-cmp-canvas-box {
+  min-height: 0 !important;
+  height: auto !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(203, 213, 225, 0.9) !important;
+}
+#quantityCalcPage .ew-cmp-canvas {
+  min-height: 0 !important;
+  height: 260px !important;
+  max-height: 420px !important;
+  display: block;
+  background: #ffffff !important;
+}
+#quantityCalcPage .ew-side-panel {
+  align-self: start !important;
+  height: auto !important;
+  max-height: none !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(203, 213, 225, 0.9) !important;
+}
+#quantityCalcPage .ew-side-panel .bg-slate-800\/70 {
+  background: rgba(248, 250, 252, 0.85) !important;
+  border-color: rgba(148, 163, 184, 0.4) !important;
+}
+
+/* ปุ่มเล็ก ๆ ในแท็บขวาให้เป็นสีอ่อนโปร่ง */
+#quantityCalcPage .ew-side-panel button {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border: 1px solid rgba(148, 163, 184, 0.5) !important;
+  color: #334155 !important;
+  border-radius: 8px !important;
+  transition: background-color 0.15s ease !important;
+}
+#quantityCalcPage .ew-side-panel button:hover {
+  background: rgba(255, 255, 255, 0.96) !important;
+}
+#quantityCalcPage .ew-side-panel button span { color: inherit !important; }
+
+/* ---------- 1) แถบหัวแท็บงานดิน: ชื่อโครงการ + ที่อยู่ + ระบบเชฟ ---------- */
+#quantityCalcPage .qty-project-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+#quantityCalcPage .qty-project-info .project-info-name {
+  font-weight: 700;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+#quantityCalcPage .qty-project-info .project-info-sep { color: #94a3b8; }
+#quantityCalcPage .qty-project-info .project-info-loc {
+  color: #475569;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
+}
+#quantityCalcPage #qtyAutosaveStatusBox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  font-size: 0.78em;
+  border-radius: 999px;
+  background: rgba(236, 253, 245, 0.85) !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+  color: #065f46 !important;
+  white-space: nowrap;
+}
+#quantityCalcPage #qtyAutosaveStatusBox .autosave-inline-label { color: #047857 !important; }
+#quantityCalcPage #qtyAutosaveStatusBox strong { color: #047857 !important; }
+
+/* ปุ่มในแถบหัวให้สีอ่อนโปร่ง (ไม่ยืดยาว) */
+#quantityCalcPage .structure-calc-top-actions .btn-action {
+  padding: 4px 10px !important;
+  font-size: 0.74em !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(148, 163, 184, 0.45) !important;
+  background: rgba(255, 255, 255, 0.78) !important;
+  color: #334155 !important;
+  box-shadow: none !important;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#quantityCalcPage .structure-calc-top-actions .btn-action:hover {
+  background: rgba(255, 255, 255, 0.96) !important;
+}
+#quantityCalcPage .structure-calc-top-actions .btn-action span { color: inherit !important; }
+
+/* ปุ่มหัวข้อส่วนที่ 3 */
+#quantityCalcPage #btnToggleBoqCollapse {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border: 1px solid rgba(148, 163, 184, 0.5) !important;
+  color: #334155 !important;
+}
+#quantityCalcPage #btnToggleBoqCollapse:hover { background: rgba(255, 255, 255, 0.96) !important; }
+
+/* ---------- ปุ่มตารางด้านบน (ซ่อน/แสดงคอลัมน์ จุด 1-14 หมวดงาน) ---------- */
+#quantityCalcPage #btnToggleColumnVisibility,
+#quantityCalcPage #btnToggleNodeCoordsCols,
+#quantityCalcPage #workCategoryToggleButtonsBar button,
+#quantityCalcPage #btnPresetColShowAll,
+#quantityCalcPage #btnPresetColHideDims,
+#quantityCalcPage #btnPresetColHideCanal,
+#quantityCalcPage #btnPresetColHideElevs,
+#quantityCalcPage #btnPresetColToggleNodes {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border: 1px solid rgba(148, 163, 184, 0.5) !important;
+  color: #334155 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
+}
+#quantityCalcPage #btnToggleColumnVisibility:hover,
+#quantityCalcPage #btnToggleNodeCoordsCols:hover,
+#quantityCalcPage #workCategoryToggleButtonsBar button:hover,
+#quantityCalcPage #btnPresetColShowAll:hover,
+#quantityCalcPage #btnPresetColHideDims:hover,
+#quantityCalcPage #btnPresetColHideCanal:hover,
+#quantityCalcPage #btnPresetColHideElevs:hover,
+#quantityCalcPage #btnPresetColToggleNodes:hover {
+  background: rgba(255, 255, 255, 0.96) !important;
+}
+#quantityCalcPage #btnToggleColumnVisibility span,
+#quantityCalcPage #btnToggleNodeCoordsCols span,
+#quantityCalcPage #workCategoryToggleButtonsBar button span,
+#quantityCalcPage #btnPresetColShowAll,
+#quantityCalcPage #btnPresetColHideDims,
+#quantityCalcPage #btnPresetColHideCanal,
+#quantityCalcPage #btnPresetColHideElevs,
+#quantityCalcPage #btnPresetColToggleNodes { color: inherit !important; }
