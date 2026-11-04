@@ -14,3 +14,6 @@
 
 # Node
 node_modules/
+
+# สคริปต์เซิร์ฟเวอร์ dev ชั่วคราว (ไม่ติดตาม)
+_devserver.js
