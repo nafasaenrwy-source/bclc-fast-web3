@@ -1,19 +1,24 @@
-# Google Drive placeholder (อ่านไม่ได้) — ตัดออกจากการติดตาม
-.gitignore.gdoc
-
-# ไฟล์ขยะจาก Google Drive sync
+# Google Drive placeholder & system files
+*.gdoc
+*.gsheet
+*.gslides
 *.tmpdir/
 ._*
 .DS_Store
+Thumbs.db
+desktop.ini
 ~$*
+* (1).*
 
-# ไฟล์สำรองชั่วคราว
+# Backup & archive files
+*.bak
 *.bak1
 *.bak_*
-*.bak
+*.zip
+*.bat
 
-# Node
+# Subprojects & dev folders
+web4/
+.agents/
 node_modules/
-
-# ʤ�Ի����������� dev ���Ǥ��� (���Դ���)
 _devserver.js

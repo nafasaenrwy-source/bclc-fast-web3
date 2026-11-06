@@ -160,24 +160,17 @@ async function clearAutosaveFromDb() {
 //     บรรทัดที่ 1: "⏱️ ระบบเชฟอัตโนมัติ  ทุกๆ 5 นาที"   (คำว่า "ทุกๆ 5 นาที" รวมกับหัวแล้ว)
 //     บรรทัดที่ 2: "เชฟล่าสุด : <เวลา>"
 function updateAutosaveStatusUI() {
-  const box = document.getElementById('autosaveStatusBox');
-  if (!box) return;
-  if (typeof box.setAttribute === 'function') {
-    box.setAttribute('title', 'เชฟทุกๆ ' + Math.round(AUTOSAVE_INTERVAL_MS / 60000) + ' นาที');
-  }
-  box.title = 'เชฟทุกๆ ' + Math.round(AUTOSAVE_INTERVAL_MS / 60000) + ' นาที';
-
-  // แสดงเฉพาะวันเวลาเชฟล่าสุด (ไม่แสดงตัวนับเวลาถอยหลัง)
-  const lastEl = document.getElementById('autosaveLastTimeText');
-  if (lastEl) lastEl.textContent = autosaveLastSavedText || '-';
-
-  // รอบ 60: ซิงก์เวลาเชฟล่าสุดไปยังแถบหัวของแท็บ "ส่วนคำนวณปริมาณ" ด้วย
-  const qtyBox = document.getElementById('qtyAutosaveStatusBox');
-  if (qtyBox) {
-    qtyBox.title = 'เชฟทุกๆ ' + Math.round(AUTOSAVE_INTERVAL_MS / 60000) + ' นาที';
-  }
-  const qtyLastEl = document.getElementById('qtyAutosaveLastTimeText');
-  if (qtyLastEl) qtyLastEl.textContent = autosaveLastSavedText || '-';
+  const titleText = 'เชฟทุกๆ ' + Math.round(AUTOSAVE_INTERVAL_MS / 60000) + ' นาที';
+  ['autosaveStatusBox', 'qtyAutosaveStatusBox'].forEach(id => {
+    const b = document.getElementById(id);
+    if (!b) return;
+    if (typeof b.setAttribute === 'function') b.setAttribute('title', titleText);
+    b.title = titleText;
+  });
+  ['autosaveLastTimeText', 'qtyAutosaveLastTimeText'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = autosaveLastSavedText || '-';
+  });
 }
 
 // ===== รอบ 44: หน้าต่างเล็ก ๆ มุมบนขวา แจ้งเตือนตอนบันทึก =====
@@ -254,8 +247,6 @@ async function runAutosaveTick(force) {
     autosaveLastSavedText = new Date().toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' });
     console.log('[autosave] เชฟอัตโนมัติสำเร็จเมื่อ', autosaveLastSavedText);
     updateAutosaveStatusUI();
-    // รอบ 60: เชฟสำเร็จแล้ว → ล้างเครื่องหมาย "ยังมีการแก้ไขที่ไม่ได้เชฟ"
-    if (typeof clearWorkspaceDirtyFlag === 'function') clearWorkspaceDirtyFlag();
     // รอบ 44: แสดงหน้าต่างเล็ก ๆ มุมบนขวาเมื่อบันทึกสำเร็จ
     if (typeof showSaveToast === 'function') {
       showSaveToast('บันทึกอัตโนมัติเรียบร้อยแล้ว (' + autosaveLastSavedText + ')', 'success');
@@ -372,67 +363,9 @@ async function startAutosaveSystem() {
   }
   initAutosave();
   updateAutosaveStatusUI();
-  // รอบ 60 (ข้อเสนอแนะข้อ 2): เตือนผู้ใช้ก่อนปิดหน้าเว็บเมื่อยังมีการแก้ไขที่ยังไม่ได้เชฟ
-  initUnsavedChangesWarning();
   try {
     await offerAutosaveRestore();
   } catch (e) {
     console.warn('ตรวจสอบข้อมูลสำรองไม่สำเร็จ:', e);
   }
 }
-
-// ===== รอบ 60 (ข้อเสนอแนะข้อ 2): เตือนเมื่อมีการแก้ไขที่ยังไม่ได้เชฟ =====
-//   - ทำเครื่องหมาย "ยังมีการแก้ไข" เมื่อผู้ใช้แก้ข้อมูลในหน้างาน (รวมหน้างานดิน)
-//   - ล้างเครื่องหมายเมื่อเชฟสำเร็จ (อัตโนมัติ/เชฟเอง)
-//   - เมื่อพยายามปิดหน้าเว็บ → เบราว์เซอร์จะแสดงคำเตือน "Leave site?"
-let workspaceDirtyState = false;
-
-/** ทำเครื่องหมายว่ามีการแก้ไขที่ยังไม่ได้เชฟ */
-function markWorkspaceDirty() {
-  workspaceDirtyState = true;
-  try {
-    sessionStorage.setItem('ew_workspace_dirty', '1');
-  } catch (_) {}
-}
-
-/** ล้างเครื่องหมาย (เรียกหลังเชฟสำเร็จ) */
-function clearWorkspaceDirtyFlag() {
-  workspaceDirtyState = false;
-  try {
-    sessionStorage.removeItem('ew_workspace_dirty');
-  } catch (_) {}
-}
-
-function isWorkspaceDirty() {
-  return workspaceDirtyState;
-}
-
-let unsavedWarningBound = false;
-function initUnsavedChangesWarning() {
-  if (unsavedWarningBound) return;
-  unsavedWarningBound = true;
-
-  // กู้สถานะจาก sessionStorage (กรณีรีโหลดหน้าในเซสชันเดิม)
-  try {
-    if (sessionStorage.getItem('ew_workspace_dirty') === '1') workspaceDirtyState = true;
-  } catch (_) {}
-
-  window.addEventListener('beforeunload', (e) => {
-    if (!workspaceDirtyState) return;
-    e.preventDefault();
-    e.returnValue = '';
-    return '';
-  });
-
-  // เครื่องหมายว่ามีการแก้ไข: จับจากการกรอกข้อมูลในตาราง/ช่องกรอกทั่วไป
-  document.addEventListener('input', (e) => {
-    const t = e.target;
-    if (!t) return;
-    const tag = (t.tagName || '').toLowerCase();
-    if (tag === 'input' || tag === 'textarea' || tag === 'select') {
-      if (t.type === 'file') return;
-      markWorkspaceDirty();
-    }
-  }, true);
-}
-

@@ -173,7 +173,7 @@ global.XLSX = {
 const files = ['js/state.js', 'js/canvas-viewer.js', 'js/table-core.js', 'js/table-sync.js', 'js/tab-project.js', 'js/tab-ditch.js',
   'js/tab-dimension.js', 'js/tab-level.js', 'js/tab-ground.js', 'js/tab-structure.js', 'js/tab-attachment.js',
   'js/tab-type.js',
-  'js/tab-earthwork.js', 'js/tab-ai-result.js', 'js/tab-validate.js', 'js/io-manager.js', 'js/ai-reader.js', 'js/autosave.js',
+  'js/tab-earthwork.js', 'js/tab-qty-structure.js', 'js/tab-ai-result.js', 'js/tab-validate.js', 'js/io-manager.js', 'js/ai-reader.js', 'js/autosave.js',
   'js/tab-export-preview.js', 'js/ai-credit.js'];
 let code = '';
 files.forEach(f => { code += fs.readFileSync(path.join(base, f), 'utf8') + '\n;\n'; });

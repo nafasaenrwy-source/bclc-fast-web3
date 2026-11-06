@@ -152,28 +152,24 @@ let currentHeaderMainTitle = null;
 let currentHeaderSubTitle = null;
 
 function updateTopHeaderBanner(mainTitleOverride, subTitleOverride) {
-  const projNameEl = document.getElementById("headerProjectName");
-  const projLocEl = document.getElementById("headerProjectLocation");
-
   if (mainTitleOverride !== undefined) currentHeaderMainTitle = mainTitleOverride;
   if (subTitleOverride !== undefined) currentHeaderSubTitle = (subTitleOverride || '');
 
-  if (projNameEl && typeof projectPlanData !== "undefined" && projectPlanData) {
-    projNameEl.textContent = projectPlanData.name || "ไม่ได้ระบุชื่อโครงการ";
-  }
-  if (projLocEl && typeof projectPlanData !== "undefined" && projectPlanData) {
-    projLocEl.textContent = "📍 " + (projectPlanData.location || "ไม่ได้ระบุสถานที่");
-  }
+  const pName = (typeof projectPlanData !== "undefined" && projectPlanData && projectPlanData.name)
+    ? projectPlanData.name
+    : "ไม่ได้ระบุชื่อโครงการ";
+  const pLoc = "📍 " + ((typeof projectPlanData !== "undefined" && projectPlanData && projectPlanData.location)
+    ? projectPlanData.location
+    : "ไม่ได้ระบุสถานที่");
 
-  // รอบ 60: ซิงก์ชื่อโครงการ/ที่อยู่ไปยังแถบหัวของแท็บ "ส่วนคำนวณปริมาณ" ด้วย
-  const qtyNameEl = document.getElementById("qtyHeaderProjectName");
-  const qtyLocEl = document.getElementById("qtyHeaderProjectLocation");
-  if (qtyNameEl && typeof projectPlanData !== "undefined" && projectPlanData) {
-    qtyNameEl.textContent = projectPlanData.name || "ไม่ได้ระบุชื่อโครงการ";
-  }
-  if (qtyLocEl && typeof projectPlanData !== "undefined" && projectPlanData) {
-    qtyLocEl.textContent = "📍 " + (projectPlanData.location || "ไม่ได้ระบุสถานที่");
-  }
+  ["headerProjectName", "qtyHeaderProjectName"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = pName;
+  });
+  ["headerProjectLocation", "qtyHeaderProjectLocation"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = pLoc;
+  });
 }
 
 // ส่วนแสดงไฟล์ PDF ถ้าไม่ได้อัปโหลดไฟล์ ไม่ต้องแสดงอะไร (ซ่อนกล่องข้อความเสมอ)

@@ -97,9 +97,15 @@ function writeToClipboard(text, successMsg) {
 
 function copyTableData() {
   const qtyPage = typeof document !== 'undefined' && document.getElementById ? document.getElementById('quantityCalcPage') : null;
-  if (qtyPage && qtyPage.style && qtyPage.style.display === 'flex' && typeof copyEarthworkBoqTableData === 'function') {
-    copyEarthworkBoqTableData();
-    return;
+  if (qtyPage && qtyPage.style && qtyPage.style.display === 'flex') {
+    if (typeof quantityCalcActiveTab === 'string' && (quantityCalcActiveTab === 'structure' || quantityCalcActiveTab === 'qty-structure') && typeof copyQtyStructureSummaryTableData === 'function') {
+      copyQtyStructureSummaryTableData('byDitch');
+      return;
+    }
+    if (typeof copyEarthworkBoqTableData === 'function') {
+      copyEarthworkBoqTableData();
+      return;
+    }
   }
   syncTableInputsToChannels();
   if (currentTab === 'project') {
@@ -760,8 +766,6 @@ async function saveProjectJSON() {
 
   let saved = await saveFileWithDialog(finalBlob, defaultFileName, 'JSON Files', ['.json']);
   if (saved) {
-    // รอบ 60: เชฟไฟล์โปรเจกต์สำเร็จ → ล้างเครื่องหมาย "ยังมีการแก้ไขที่ไม่ได้เชฟ"
-    if (typeof clearWorkspaceDirtyFlag === 'function') clearWorkspaceDirtyFlag();
     // รอบ 44: แจ้งเตือนแบบหน้าต่างเล็ก ๆ มุมบนขวา (แทน alert กลางจอ)
     if (typeof showSaveToast === 'function') {
       showSaveToast('บันทึกข้อมูลโปรเจกต์ JSON เรียบร้อยแล้ว!', 'success');

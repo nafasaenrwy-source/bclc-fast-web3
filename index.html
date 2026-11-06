@@ -17,13 +17,9 @@
           onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';document.head.appendChild(s);"></script>
   <!-- Google Font Sarabun & Libraries for Section 3 (งานดิน) -->
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script>
-    window.tailwind = { config: { corePlugins: { preflight: false } } };
-  </script>
-  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <!-- CSS Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=20261104b">
+  <link rel="stylesheet" href="style.css?v=20261105e">
 </head>
 <body>
 
@@ -95,7 +91,7 @@
 
       <div class="developer-tab" id="devBadge">
         <div class="dev-badge-line1">💻 พัฒนาโดย สจจ.2</div>
-        <div class="dev-badge-version" id="devBadgeVersion">Version 1.0004</div>
+        <div class="dev-badge-version" id="devBadgeVersion">Version 1.0014</div>
       </div>
     </div>
 
@@ -116,15 +112,10 @@
       <!-- เนื้อหาจะถูก render โดย renderProjectPlanPage() -->
     </div>
 
-    <!-- รอบ 59: หน้าเมนูย่อย "ส่วนคำนวณปริมาณ" พร้อมแท็บ "งานดิน" และนำหลักส่วนที่ 3 ของไฟล์ที่แนบ + ค่าจากส่วนถอดแบบมาใส่ -->
+    <!-- รอบ 59 / รอบ 62: หน้าเมนูย่อย "ส่วนคำนวณปริมาณ" แท็บ "งานดิน" ด้านบน และแบ่งเป็น 3 ส่วนพร้อมเส้นแบ่งส่วน -->
     <div class="structure-calc-page quantity-calc-page" id="quantityCalcPage" style="display: none;">
-      <!-- รอบ 60: แถบหัวแท็บงานดิน แสดงชื่อโครงการ + ที่อยู่ + ระบบเชฟอัตโนมัติ + ปุ่ม Undo/Redo (เหมือนส่วนถอดแบบ) -->
-      <div class="structure-calc-top-bar">
-        <div class="structure-calc-page-title">
-          <span>📐 ส่วนคำนวณปริมาณ</span>
-          <span class="structure-calc-page-sub" id="quantityCalcActiveTabTitle">⛰️ งานดิน</span>
-        </div>
-        <div class="page-header-project-info qty-project-info" id="qtyProjectInfoBar">
+      <div class="top-toolbar-bar" id="qtyTopToolbarBar">
+        <div class="page-header-project-info" id="qtyTopProjectInfoBar">
           <span class="project-info-name" id="qtyHeaderProjectName">โครงการจัดรูปที่ดินระบบคูส่งน้ำสายหลัก</span>
           <span class="project-info-sep">|</span>
           <span class="project-info-loc" id="qtyHeaderProjectLocation">📍 ตำบลบ้านใหม่ อำเภอเมือง จังหวัดเชียงใหม่</span>
@@ -133,318 +124,128 @@
           <span class="autosave-inline-label">⏱️ ระบบเชฟอัตโนมัติ :</span>
           <strong id="qtyAutosaveLastTimeText">-</strong>
         </div>
-        <div class="structure-calc-top-actions">
-          <button type="button" class="btn-action ew-btn-soft" id="btnHeaderUndo" onclick="performWorkspaceUndo()" title="ย้อนการทำงานในหน้านี้ (Ctrl+Z)"><span>↩ ยกเลิก</span></button>
-          <button type="button" class="btn-action ew-btn-soft" id="btnHeaderRedo" onclick="performWorkspaceRedo()" title="ทำซ้ำการทำงานในหน้านี้ (Ctrl+Y)"><span>↪ กลับการทำงาน</span></button>
-          <button type="button" class="btn-action" id="btnSyncEarthworkFromTakeoffTop" style="background-color: #059669;" onclick="syncEarthworkFromTakeoff(true)" title="ดึงค่าจากส่วนถอดแบบมาคำนวณในแท็บงานดิน">🔄 ดึงค่าจากส่วนถอดแบบ</button>
-          <button type="button" class="btn-action" style="background-color: #6c757d;" onclick="copyTableData()">📋 Copy</button>
-          <button type="button" class="btn-action" style="background-color: #007bff;" onclick="returnToTakeoff()">กลับสู่ ส่วนถอดแบบ</button>
+        <span id="quantityCalcActiveTabTitle" style="display: none;">⛰️ งานดิน</span>
+      </div>
+
+      <!-- รอบ 62 (รูปที่ 3 ข้อ 1): ลบแท็บข้างทิ้ง ย้าย "งานดิน" ไปอยู่ตำแหน่งบน ทำเป็นแท็บแนวนอน -->
+      <div class="quantity-top-tabs-area" id="quantityCalcTopTabsArea">
+        <div class="quantity-top-tabs-header">
+          <div class="quantity-top-tabs-scroll" id="quantityCalcTabsList">
+            <button type="button" class="quantity-top-tab-btn active" id="qty-calc-tab-earthwork" onclick="switchQuantityCalcTab('earthwork')" title="งานดิน">⛰️ งานดิน</button>
+            <button type="button" class="quantity-top-tab-btn" id="qty-calc-tab-structure" onclick="switchQuantityCalcTab('structure')" title="งานอาคารประกอบ">🏗️ งานอาคารประกอบ</button>
+          </div>
         </div>
       </div>
-      <div class="structure-calc-body">
-        <div class="structure-calc-sidebar" id="quantityCalcSidebar">
-          <div class="structure-calc-sidebar-header">
-            <span class="structure-calc-sidebar-title">รายการคำนวณปริมาณ</span>
-            <button type="button" class="structure-calc-collapse-btn" id="btnToggleQuantityCalcSidebar" onclick="toggleQuantityCalcSidebar(event)" title="ย่อ/ขยายเมนูแท็บซ้ายมือ">◀</button>
-          </div>
-          <div class="structure-calc-tabs-list" id="quantityCalcTabsList">
-            <button type="button" class="struct-calc-tab-btn active" id="qty-calc-tab-earthwork" onclick="switchQuantityCalcTab('earthwork')" title="งานดิน">
-              <span class="struct-calc-tab-icon">⛰️</span>
-              <span class="struct-calc-tab-text">งานดิน</span>
-            </button>
-          </div>
-        </div>
+
+      <!-- ซ่อนโครงสร้างแถบข้างเดิมไว้เพื่อความเข้ากันได้ของฟังก์ชันเก่า -->
+      <div class="hidden" id="quantityCalcSidebar" style="display: none !important;" aria-hidden="true">
+        <button type="button" id="btnToggleQuantityCalcSidebar" onclick="toggleQuantityCalcSidebar(event)">◀</button>
+      </div>
+
+      <div class="structure-calc-body quantity-calc-body-full">
         <div class="structure-calc-main quantity-calc-main" id="quantityCalcMain">
           <div class="quantity-calc-earthwork-scroll custom-scrollbar" id="quantityCalcEarthworkContainer">
-        <!-- ========================================================================= -->
-        <!-- MODULE 3: EXTERNAL DATA BOQ TABLE & 2 CROSS-SECTIONS COMPARISON           -->
-        <!-- ========================================================================= -->
-        <section id="sectionExternalData" class="w-full bg-slate-800/40 rounded-2xl border border-slate-700/70 p-3.5 sm:p-5 space-y-5 shadow-2xl">
-            <!-- Section Header & File Controls -->
-            <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b border-slate-700/80 pb-3.5">
-                <div class="flex items-start gap-3">
-                    <div class="flex flex-col items-stretch gap-1.5 shrink-0">
-                        <span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 text-xs font-bold text-center">ส่วนที่ 3 • ตาราง BoQ & เปรียบเทียบรูปตัด</span>
-                        <button id="btnToggleBoqCollapse" class="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-[11px] font-semibold text-slate-200 border border-slate-600 transition flex items-center justify-center gap-1">
-                            <span>ย่อ / ขยายส่วนที่ 3</span>
-                        </button>
-                    </div>
-                    <div>
-                        <h2 class="text-sm sm:text-base font-bold text-white">
-                            คำนวณพื้นที่และปริมาณงานตามช่วง กม. (รับค่า NGL จาก Digitizer หรือไฟล์ Excel)
-                        </h2>
-                        <p class="text-xs text-slate-400 mt-0.5">
-                            แสดงการเปรียบเทียบ 2 รูปตัดขวาง (<strong class="text-cyan-300">กม.เริ่มต้น A1</strong> และ <strong class="text-amber-300">กม.สิ้นสุด A2</strong>) • คำนวณปริมาณงานด้วยสูตร <code class="text-emerald-300 bg-slate-900 px-1.5 py-0.5 rounded">(A1 + A2) × 0.5 × L</code> แยกครบทุกหมวดงาน • ใช้ปุ่มลูกศร <kbd class="px-1.5 py-0.5 bg-slate-700 rounded text-slate-200">↑</kbd> <kbd class="px-1.5 py-0.5 bg-slate-700 rounded text-slate-200">↓</kbd> <kbd class="px-1.5 py-0.5 bg-slate-700 rounded text-slate-200">←</kbd> <kbd class="px-1.5 py-0.5 bg-slate-700 rounded text-slate-200">→</kbd> เลื่อนช่องในตารางได้ทันที
-                        </p>
-                    </div>
-                </div>
 
-                <!-- File Upload / Download Template Buttons (รอบ 60: ปุ่มกะทัดรัด ไม่ยืดเต็มความกว้าง + ปุ่ม Undo/Redo) -->
-                <div class="ml-auto shrink-0 self-end xl:self-center flex flex-col items-stretch gap-1.5 w-full sm:w-64">
-                    <button type="button" id="btnPullFromTakeoffSec3" onclick="syncEarthworkFromTakeoff(true)" class="ew-btn ew-btn-indigo justify-center px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5" title="ดึงข้อมูลคลองส่งน้ำ คูส่งน้ำ มิติ ระดับคูส่งน้ำ และระดับดินเดิมจากส่วนถอดแบบมาใส่ตารางคำนวณ">
-                        <span>🔄 ดึงค่าจากส่วนถอดแบบ</span>
-                    </button>
-                    <!-- รอบ 60: ปุ่ม Undo / Redo สำหรับย้อนการทำงานทั้งหมดในหน้านี้ -->
-                    <div class="flex items-center gap-1.5">
-                        <button type="button" id="btnPullUndo" class="ew-btn ew-btn-slate flex-1 justify-center px-2 py-1 rounded-lg text-[11px] font-semibold transition flex items-center justify-center gap-1" onclick="performWorkspaceUndo()" title="ย้อนการทำงานในหน้างานดิน (Ctrl+Z)"><span>↩ ยกเลิก</span></button>
-                        <button type="button" id="btnPullRedo" class="ew-btn ew-btn-slate flex-1 justify-center px-2 py-1 rounded-lg text-[11px] font-semibold transition flex items-center justify-center gap-1" onclick="performWorkspaceRedo()" title="ทำซ้ำการทำงานในหน้างานดิน (Ctrl+Y)"><span>↪ กลับการทำงาน</span></button>
-                    </div>
-                    <input type="file" id="uploadExcelInput" accept=".xlsx,.xls,.csv" class="hidden">
-                    <button id="btnUploadExcel" class="ew-btn ew-btn-emerald justify-center px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
-                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                        <span>อัปโหลดไฟล์ Excel (.xlsx / .csv)</span>
-                    </button>
-                    <button id="btnDownloadTemplate" class="ew-btn ew-btn-cyan justify-center px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
-                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                        <span>ดาวน์โหลดไฟล์ตัวอย่าง Excel</span>
-                    </button>
-                    <!-- Preserved hidden elements for DOM/event compatibility -->
-                    <div class="hidden" aria-hidden="true">
-                        <button type="button">ดาวน์โหลดไฟล์ตัวอย่าง</button>
-                        <button type="button">ดาวน์โหลดไฟล์ผลลัพธ์ (.xlsx)</button>
-                        <button type="button">👁️ ซ่อน/แสดงคอลัมน์ A-T</button>
-                        <button id="btnAddRow">เพิ่มแถว</button>
-                        <button id="btnResetSampleRows">รีเซ็ตข้อมูลตัวอย่าง</button>
-                        <span id="badgeNglTabInfo"></span>
-                        <button id="btnUndoAction" disabled><span>↩ ยกเลิก</span></button>
-                        <button id="btnRedoAction" disabled><span>↪ กลับการทำงาน</span></button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="boqSectionBody" class="space-y-5">
-
-            <!-- Status / Notification Banner -->
-            <div id="fileStatusBanner" class="hidden rounded-xl px-4 py-2.5 text-xs font-medium flex items-center justify-between border">
-                <span id="fileStatusText"></span>
-                <button id="btnCloseBanner" class="text-slate-400 hover:text-white ml-4">✕</button>
-            </div>
-
-            <!-- Interactive Longitudinal Profile Preview (NGL vs BL vs TBL across all table stations) -->
-            <div class="bg-slate-950/90 rounded-2xl border border-slate-800 p-3 space-y-1.5 shadow-lg">
-                <div class="flex flex-wrap justify-between items-center gap-2 text-xs">
+        <!-- รอบ 62/64 (รูปที่ 2): หน้าต่างแจ้งเตือนสถานะการทำงานแบบหน้าต่างเล็กกะทัดรัด -->
+        <div id="fileStatusModal" class="fixed inset-0 z-50 hidden bg-slate-950/50 backdrop-blur-sm flex items-center justify-center p-3">
+            <div class="ew-status-modal-card bg-white border border-cyan-500/70 rounded-xl p-3.5 shadow-xl space-y-2.5">
+                <div class="flex items-center justify-between gap-2 border-b border-slate-200 pb-2">
                     <div class="flex items-center gap-2">
-                        <span class="font-bold text-slate-200">กราฟโปรไฟล์ตามยาว (Longitudinal Profile: NGL / BL. / TBL.) จากข้อมูลในตาราง:</span>
-                        <span class="text-[11px] text-slate-400">(คลิกที่ช่วง กม. บนกราฟเพื่อเลือกแถวเปรียบเทียบรูปตัดขวางได้ทันที)</span>
+                        <span id="fileStatusModalIcon" class="w-6 h-6 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0">✓</span>
+                        <h3 class="text-xs font-bold text-slate-900">แจ้งเตือนสถานะข้อมูล</h3>
                     </div>
-                    <div class="flex items-center gap-4 text-[11px]">
-                        <span class="flex items-center gap-1 text-emerald-400"><span class="w-3 h-0.5 bg-emerald-400 inline-block"></span> ระดับดินเดิม (NGL)</span>
-                        <span class="flex items-center gap-1 text-sky-400"><span class="w-3 h-0.5 bg-sky-400 inline-block"></span> ระดับท้องคลอง (BL.)</span>
-                        <span class="flex items-center gap-1 text-rose-400"><span class="w-3 h-0.5 bg-rose-400 inline-block"></span> ระดับหลังคลอง (TBL.)</span>
-                    </div>
+                    <button type="button" id="btnCloseBanner" class="text-slate-400 hover:text-slate-700 font-bold p-0.5 text-xs leading-none" title="ปิดหน้าต่าง">✕</button>
                 </div>
-                <div class="relative h-40 w-full bg-slate-950 rounded-xl border border-slate-800/80 overflow-hidden">
-                    <canvas id="canvasLongProfile" class="w-full h-full cursor-crosshair block"></canvas>
+                <div id="fileStatusBanner" class="rounded-lg px-3 py-2 text-xs font-medium flex items-center justify-between border">
+                    <span id="fileStatusText" class="leading-snug"></span>
                 </div>
-                <!-- Interactive Scrubber Slider & Value Indicator under graph per รูป 5 -->
-                <div class="pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 text-xs">
-                    <div class="flex items-center gap-2.5 flex-1 min-w-0">
-                        <span class="text-[11px] font-semibold text-cyan-300 shrink-0 flex items-center gap-1">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"></path></svg>
-                            เลื่อนตรวจสอบ กม.:
-                        </span>
-                        <div class="flex-1 relative flex items-center">
-                            <input type="range" id="profileScrubberSlider" min="0" max="200" step="1" value="0" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-ew-resize accent-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400" title="ลากเลื่อนเพื่อดูค่า กม. และระดับทั้ง 3 ค่า วิ่งตามเส้น">
-                        </div>
+                <div class="flex justify-end">
+                    <button type="button" id="btnConfirmStatusModal" class="ew-soft-btn ew-soft-cyan px-3 py-1 text-xs">ตกลง</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- ส่วนที่ 1: ตารางคำนวณพื้นที่และปริมาณงานตามช่วง กม.                        -->
+        <!-- ========================================================================= -->
+        <section id="sectionExternalData" class="w-full bg-slate-800/40 rounded-2xl border border-slate-700/70 p-3.5 sm:p-5 space-y-4 shadow-2xl ew-part-section">
+            <!-- Section 1 Header & File Controls -->
+            <div class="ew-section-header-wrap">
+                <!-- แถวที่ 1: หัวข้อส่วนที่ 1 + ปุ่มย่อ/ขยาย (+/-) -->
+                <div class="ew-section-header-top">
+                    <div class="ew-section-header-title-group">
+                        <button type="button" id="btnToggleBoqCollapse" class="ew-line-collapse-btn" onclick="toggleBoqSectionCollapse()" title="ย่อ/ขยายส่วนที่ 1">-</button>
+                        <span class="ew-badge ew-badge-emerald">ส่วนที่ 1</span>
+                        <h2 class="ew-section-main-heading">
+                            ตารางคำนวณพื้นที่และปริมาณงานตามช่วง กม. (รับค่า NGL จากส่วนถอดแบบหรือไฟล์ Excel)
+                        </h2>
                     </div>
-                    <div class="flex items-center gap-2 shrink-0">
-                        <div class="inline-flex items-center gap-2 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-700/80 text-[11px] font-mono shadow-sm">
-                            <span class="text-slate-400">ตำแหน่ง:</span>
-                            <strong id="profileScrubBadgeSta" class="text-cyan-300 font-bold">-</strong>
-                            <span class="text-slate-600">|</span>
-                            <span class="text-emerald-400">NGL: <strong id="profileScrubBadgeNgl">-</strong></span>
-                            <span class="text-slate-600">|</span>
-                            <span class="text-sky-400">BL: <strong id="profileScrubBadgeBl">-</strong></span>
-                            <span class="text-slate-600">|</span>
-                            <span class="text-rose-400">TBL: <strong id="profileScrubBadgeTbl">-</strong></span>
-                        </div>
-                        <button type="button" id="btnSnapProfileToActiveRow" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700 transition" title="เลื่อนตัวเลื่อนไปที่จุดเริ่มต้นของแถวที่กำลังเลือก">
-                            🎯 ตามแถวที่เลือก
+                    <p class="ew-section-sub-desc">
+                        แสดงการเปรียบเทียบ 2 รูปตัดขวาง (<strong class="text-cyan-700">กม.เริ่มต้น A1</strong> และ <strong class="text-amber-700">กม.สิ้นสุด A2</strong>) • คำนวณปริมาณงานด้วยสูตร <code class="ew-formula-chip">(A1 + A2) × 0.5 × L</code> แยกครบทุกหมวดงาน • ใช้ปุ่มลูกศร <kbd class="ew-kbd">↑</kbd> <kbd class="ew-kbd">↓</kbd> <kbd class="ew-kbd">←</kbd> <kbd class="ew-kbd">→</kbd> เลื่อนช่องในตารางได้ทันที
+                    </p>
+                </div>
+
+                <!-- แถวที่ 2 (รอบ 63 ตามรูปที่ 1 ข้อ 1, 2, 3, 4): ซ้ายสุดเป็นดรอปลิสต์เลือกสายคูส่งน้ำ | ขวาเป็น Undo, Redo, ดึงค่า..., ตัวอย่าง Excel, Copy ตาราง, ค่าเริ่มต้นคูส่งน้ำ, แสดงข้อมูลตาราง -->
+                <div class="ew-header-toolbar-row" id="earthworkDataActionsRow">
+                    <div class="ew-toolbar-group">
+                        <label for="selectEarthworkCanalLineFilter" class="text-xs font-bold text-slate-700 whitespace-nowrap">🌊 เลือกแสดงสายคูส่งน้ำ:</label>
+                        <select id="selectEarthworkCanalLineFilter" onchange="onEarthworkCanalLineFilterChange(this.value)" class="ew-canal-filter-select">
+                            <option value="ALL">แสดงทั้งหมดทุกสาย</option>
+                        </select>
+                    </div>
+                    <div class="ew-toolbar-group">
+                        <button type="button" id="btnUndoAction" class="ew-soft-btn ew-soft-slate" disabled title="Undo: ย้อนการทำงานทีละ 1 ครั้ง (Ctrl+Z)">
+                            <span>↩ Undo</span>
                         </button>
+                        <button type="button" id="btnRedoAction" class="ew-soft-btn ew-soft-slate" disabled title="Redo: ทำซ้ำการทำงานทีละ 1 ครั้ง (Ctrl+Y)">
+                            <span>↪ Redo</span>
+                        </button>
+                        <button type="button" id="btnPullFromTakeoffSec3" onclick="syncEarthworkFromTakeoff(true)" class="ew-soft-btn ew-soft-indigo" title="ดึงข้อมูลคลองส่งน้ำ คูส่งน้ำ มิติ ระดับคูส่งน้ำ และระดับดินเดิมจากส่วนถอดแบบมาใส่ตารางคำนวณ">
+                            <span>🔄 ดึงค่าจากส่วนถอดแบบ</span>
+                        </button>
+                        <button type="button" id="btnDownloadTemplate" class="ew-soft-btn ew-soft-cyan" title="ดาวน์โหลดไฟล์ตัวอย่าง Excel">
+                            <span>📥 ตัวอย่าง Excel</span>
+                        </button>
+                        <button type="button" id="btnSyncEarthworkFromTakeoffTop" onclick="copyTableData()" class="ew-soft-btn ew-soft-slate" title="คัดลอกข้อมูลตารางงานดินลงคลิปบอร์ด">
+                            <span>📋 Copy ตาราง</span>
+                        </button>
+                        <button type="button" id="btnOpenCanalDefaultsModal" class="ew-soft-btn ew-soft-emerald" title="ตั้งค่าเริ่มต้นคูส่งน้ำ (tw, tb, ts, dt), ตารางมิติ U-SHAPE (VU1-VU6) และการคำนวณ ระดับ TBL. = BL. + H">
+                            <svg class="w-4 h-4 text-emerald-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            <span>ค่าเริ่มต้นคูส่งน้ำ</span>
+                        </button>
+                        <button type="button" id="btnShowPrintableTableModal" class="ew-soft-btn ew-soft-indigo" title="แสดงและพิมพ์ตารางปัจจุบันที่ผู้ใช้ทำงาน พร้อมตารางย่อยสรุปส่วนหัวและรายละเอียดคลองแต่ละสาย">
+                            <svg class="w-4 h-4 text-cyan-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                            <span>แสดงข้อมูลตาราง</span>
+                        </button>
+                    </div>
+                    <!-- ซ่อนปุ่มที่ลบออกไว้เพื่อความเข้ากันได้ของสคริปต์ -->
+                    <div class="hidden" style="display: none !important;" aria-hidden="true">
+                        <input type="file" id="uploadExcelInput" accept=".xlsx,.xls,.csv" class="hidden">
+                        <button type="button" id="btnUploadExcel">📤 อัปโหลดไฟล์ Excel (.xlsx / .csv)</button>
+                        <button type="button" id="btnAddRow">➕ เพิ่มแถว</button>
+                        <button type="button" id="btnResetSampleRows">↺ รีเซ็ตตัวอย่าง</button>
+                        <span id="badgeNglTabInfo"></span>
                     </div>
                 </div>
             </div>
 
-            <!-- Side-by-Side 2 Cross-Sections Comparison & Active Row Volume Breakdown (รอบ 60: ปรับความสูงให้พอดีกับเนื้อหา ไม่ยืดยาว) -->
-            <div class="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
-
-                <!-- Left & Right Comparison Canvases + Shared Display Controls Bar (ตามรูป 3) -->
-                <div class="xl:col-span-8 flex flex-col gap-2">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-                        <!-- Left Comparison Canvas: Start Station (กม.เริ่มต้น) -->
-                        <div class="ew-cmp-canvas-box bg-slate-950 rounded-2xl border border-slate-800 flex flex-col overflow-hidden relative shadow-xl">
-                            <div class="bg-slate-900/90 border-b border-slate-800 px-3.5 py-2 flex justify-between items-center z-10">
-                                <div class="flex items-center gap-2">
-                                    <span class="px-2 py-0.5 rounded bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 text-xs font-bold">รูปที่ 1 (A1)</span>
-                                    <span id="lblCompareStartTitle" class="text-xs font-semibold text-slate-100">กม.เริ่มต้น: -</span>
-                                </div>
-                                <button id="btnResetCompareStart" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700 transition">
-                                    รีเซ็ตมุมมอง
-                                </button>
-                            </div>
-                            <div id="badgeCompareStartInfo" class="bg-slate-900/60 px-3.5 py-1 text-[11px] text-slate-400 border-b border-slate-800/80 flex flex-wrap justify-between gap-2">
-                                <span>NGL: <strong class="text-slate-500">-</strong></span>
-                                <span>BL.: <strong class="text-slate-500">-</strong></span>
-                                <span>TBL.: <strong class="text-slate-500">-</strong></span>
-                            </div>
-                            <canvas id="canvasCompareStart" class="ew-cmp-canvas w-full cursor-grab active:cursor-grabbing"></canvas>
-                        </div>
-
-                        <!-- Right Comparison Canvas: End Station (กม.สิ้นสุด) -->
-                        <div class="ew-cmp-canvas-box bg-slate-950 rounded-2xl border border-slate-800 flex flex-col overflow-hidden relative shadow-xl">
-                            <div class="bg-slate-900/90 border-b border-slate-800 px-3.5 py-2 flex justify-between items-center z-10">
-                                <div class="flex items-center gap-2">
-                                    <span class="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/50 text-amber-300 text-xs font-bold">รูปที่ 2 (A2)</span>
-                                    <span id="lblCompareEndTitle" class="text-xs font-semibold text-slate-100">กม.สิ้นสุด: -</span>
-                                </div>
-                                <button id="btnResetCompareEnd" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700 transition">
-                                    รีเซ็ตมุมมอง
-                                </button>
-                            </div>
-                            <div id="badgeCompareEndInfo" class="bg-slate-900/60 px-3.5 py-1 text-[11px] text-slate-400 border-b border-slate-800/80 flex flex-wrap justify-between gap-2">
-                                <span>NGL: <strong class="text-slate-500">-</strong></span>
-                                <span>BL.: <strong class="text-slate-500">-</strong></span>
-                                <span>TBL.: <strong class="text-slate-500">-</strong></span>
-                            </div>
-                            <canvas id="canvasCompareEnd" class="ew-cmp-canvas w-full cursor-grab active:cursor-grabbing"></canvas>
-                        </div>
-                    </div>
-
-                    <!-- Section 3 Independent Display & Area Color Controls Bar (ใช้ร่วมกันทั้ง 2 รูปในส่วนที่ 3 แยกจากส่วนที่ 1 ตามรูป 3) -->
-                    <div id="cmpDisplayControlsBar" class="shrink-0 bg-slate-900/95 px-2 py-1.5 rounded-xl border border-slate-700/80 flex items-center justify-between gap-1 flex-nowrap overflow-x-auto custom-scrollbar text-xs shadow-lg">
-                        <button type="button" id="btnCmpToggleAreaStripping" class="flex-1 min-w-0 justify-center px-1.5 py-1 rounded-lg bg-amber-950/80 hover:bg-amber-900/80 text-[10.5px] xl:text-[11px] font-semibold text-amber-200 border border-amber-500/60 transition flex items-center gap-1 whitespace-nowrap">
-                            <span id="dotCmpAreaStripping" class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
-                            <span id="lblCmpAreaStripping" class="truncate">แสดงขุดลอกหน้าดิน</span>
-                        </button>
-                        <button type="button" id="btnCmpToggleAreaCompacted" class="flex-1 min-w-0 justify-center px-1.5 py-1 rounded-lg bg-teal-950/80 hover:bg-teal-900/80 text-[10.5px] xl:text-[11px] font-semibold text-teal-200 border border-teal-500/60 transition flex items-center gap-1 whitespace-nowrap">
-                            <span id="dotCmpAreaCompacted" class="w-2 h-2 rounded-full bg-teal-400 shrink-0"></span>
-                            <span id="lblCmpAreaCompacted" class="truncate">แสดงดินถมบดอัดแน่น 85%</span>
-                        </button>
-                        <button type="button" id="btnCmpToggleAreaExcavation" class="flex-1 min-w-0 justify-center px-1.5 py-1 rounded-lg bg-orange-950/80 hover:bg-orange-900/80 text-[10.5px] xl:text-[11px] font-semibold text-orange-200 border border-orange-500/60 transition flex items-center gap-1 whitespace-nowrap">
-                            <span id="dotCmpAreaExcavation" class="w-2 h-2 rounded-full bg-orange-400 shrink-0"></span>
-                            <span id="lblCmpAreaExcavation" class="truncate">แสดงดินขุด</span>
-                        </button>
-                        <button type="button" id="btnCmpToggleAreaManualFill" class="flex-1 min-w-0 justify-center px-1.5 py-1 rounded-lg bg-purple-950/80 hover:bg-purple-900/80 text-[10.5px] xl:text-[11px] font-semibold text-purple-200 border border-purple-500/60 transition flex items-center gap-1 whitespace-nowrap">
-                            <span id="dotCmpAreaManualFill" class="w-2 h-2 rounded-full bg-purple-400 shrink-0"></span>
-                            <span id="lblCmpAreaManualFill" class="truncate">แสดงดินถมด้วยแรงคน</span>
-                        </button>
-                        <button type="button" id="btnCmpToggleDims" class="flex-1 min-w-0 justify-center px-1.5 py-1 rounded-lg bg-cyan-950/80 hover:bg-cyan-900/80 text-[10.5px] xl:text-[11px] font-semibold text-cyan-200 border border-cyan-500/60 transition flex items-center gap-1 whitespace-nowrap">
-                            <span id="dotCmpDims" class="w-2 h-2 rounded-full bg-cyan-400 shrink-0"></span>
-                            <span id="lblCmpDims" class="truncate">แสดงมิติโครงสร้าง</span>
-                        </button>
-                        <button type="button" id="btnCmpToggleWidths" class="flex-1 min-w-0 justify-center px-1.5 py-1 rounded-lg bg-pink-950/80 hover:bg-pink-900/80 text-[10.5px] xl:text-[11px] font-semibold text-pink-200 border border-pink-500/60 transition flex items-center gap-1 whitespace-nowrap">
-                            <span id="dotCmpWidths" class="w-2 h-2 rounded-full bg-pink-400 shrink-0"></span>
-                            <span id="lblCmpWidths" class="truncate">แสดงความกว้างขุดลอก/คันดิน</span>
-                        </button>
-                        <button type="button" id="btnCmpResetBothViews" class="shrink-0 w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-cyan-300 border border-slate-600 transition flex items-center justify-center shadow" title="รีเซ็ตมุมมองทั้ง 2 รูปตัดในส่วนที่ 3 และแสดงค่าทั้งหมด">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                            <span class="hidden">รีเซ็ตมุมมองรูปตัดเปรียบเทียบ</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Comparison Data Table for Selected Row (A1, A2, L, Volume = (A1+A2)*0.5*L) -->
-                <div class="ew-side-panel xl:col-span-4 bg-slate-900/95 rounded-2xl border border-slate-700/80 p-3.5 flex flex-col justify-start shadow-xl">
-                    <div class="space-y-2.5">
-                        <div class="flex flex-wrap justify-between items-center gap-2 border-b border-slate-800 pb-2">
-                            <div>
-                                <div class="flex items-center gap-2">
-                                    <span id="cmpRowBadge" class="px-2 py-0.5 rounded bg-indigo-500/20 border border-indigo-400/50 text-indigo-300 text-xs font-bold">ไม่มีข้อมูล (0 แถว)</span>
-                                    <h3 id="cmpCanalTitle" class="text-xs sm:text-sm font-bold text-white">-</h3>
-                                </div>
-                                <p id="cmpStructSummary" class="text-[11px] text-slate-400 mt-0.5">ยังไม่มีข้อมูลในตาราง</p>
-                            </div>
-                            <div class="flex items-center gap-1.5 flex-wrap">
-                                <button id="btnPrevRow" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700 transition" title="แถวก่อนหน้า (ลูกศรขึ้น)">◀ ก่อนหน้า</button>
-                                <button id="btnNextRow" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700 transition" title="แถวถัดไป (ลูกศรลง)">ถัดไป ▶</button>
-                                <button type="button" id="btnShowRowCalcSheet" class="px-3 py-1 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-cyan-950/60 border border-cyan-400/40 transition flex items-center gap-1.5 hover:scale-[1.02]" title="แสดงรายการคำนวณเปรียบเทียบทั้ง 2 รูปตัดและคำนวณปริมาณงานสำหรับแถวนี้">
-                                    <svg class="w-4 h-4 text-cyan-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                    <span>แสดงรายการคำนวณ</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Distance L and Formula Banner -->
-                        <div class="grid grid-cols-3 gap-2 bg-slate-800/70 rounded-xl p-2.5 border border-slate-700/60 text-xs">
-                            <div>
-                                <span class="text-[11px] text-slate-400 block">ช่วง กม.เริ่มต้น - สิ้นสุด</span>
-                                <strong id="cmpStaRange" class="text-cyan-300 text-sm">-</strong>
-                            </div>
-                            <div class="text-center border-x border-slate-700/70 px-2">
-                                <span class="text-[11px] text-slate-400 block">ระยะทางระหว่าง กม. (L)</span>
-                                <strong id="cmpLengthL" class="text-emerald-400 text-sm">0.00 m</strong>
-                            </div>
-                            <div class="text-right">
-                                <span class="text-[11px] text-slate-400 block">สูตรการคำนวณปริมาณงาน</span>
-                                <strong class="text-amber-300 text-xs">(A1 + A2) × 0.5 × L</strong>
-                            </div>
-                        </div>
-
-                        <!-- Detailed Comparison Table for the Selected Row -->
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse text-xs">
-                                <thead>
-                                    <tr class="border-b border-slate-800 text-[11px] text-slate-400">
-                                        <th class="py-1.5 font-medium">หมวดงาน</th>
-                                        <th class="py-1.5 font-medium text-right text-cyan-300">A1 (m²)</th>
-                                        <th class="py-1.5 font-medium text-right text-amber-300">A2 (m²)</th>
-                                        <th class="py-1.5 font-medium text-right text-slate-300">L (m)</th>
-                                        <th class="py-1.5 font-semibold text-right text-emerald-300">ปริมาณ (m³)</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="cmpBreakdownBody" class="divide-y divide-slate-800/70">
-                                    <!-- Dynamically populated by updateComparisonView() -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="mt-3 pt-2 border-t border-slate-800 flex justify-between items-center text-[11px] text-slate-400">
-                        <span>ส่งค่าจากแถวนี้ไปดูที่รูปตัดขวางหลัก (ส่วนที่ 1):</span>
-                        <div class="flex gap-1.5">
-                            <button id="btnLoadStartToMain" class="px-2.5 py-1 rounded bg-cyan-950/90 hover:bg-cyan-900 text-cyan-300 border border-cyan-700/60 transition">ดูรูปที่ 1 ในหน้าหลัก</button>
-                            <button id="btnLoadEndToMain" class="px-2.5 py-1 rounded bg-amber-950/90 hover:bg-amber-900 text-amber-300 border border-amber-700/60 transition">ดูรูปที่ 2 ในหน้าหลัก</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Interactive Engineering Spreadsheet Table & Controls -->
-            <div class="space-y-3">
-                <!-- Table Controls Header: แถว 1 หัวข้อตาราง | แถว 2 ซ้าย: ปุ่มซ่อนคอลัมน์ + ปุ่มแสดง/ซ่อนแต่ละหมวดงาน | แถว 2 ขวา: ปุ่มแสดงข้อมูลตาราง -->
-                <div class="space-y-2 pt-1 pb-0.5 w-full">
-                    <!-- แถวที่ 1: หัวข้อตาราง -->
-                    <div class="flex items-center justify-between gap-2">
-                        <h3 class="text-sm font-bold text-cyan-300 flex items-center gap-1.5">
-                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                            <span>ตารางข้อมูล พิกัดจุด 14 จุด และผลการคำนวณปริมาณงาน</span>
-                        </h3>
-                    </div>
-
-                    <!-- แถวที่ 2 (แถวเดียวตามรูป 1): ฝั่งซ้ายเรียงปุ่มซ่อนคอลัมน์ + ปุ่มแสดง/ซ่อน 6 หมวดงานหลัก | ฝั่งขวาชิดขอบขวาเป็นปุ่ม แสดงข้อมูลตาราง -->
+            <div id="boqSectionBody" class="space-y-4">
+                <!-- Interactive Engineering Spreadsheet Table & Controls -->
+                <div class="space-y-2.5">
+                    <!-- แถวปุ่มควบคุมคอลัมน์และหมวดงาน (รอบ 63 ตามรูปที่ 1 ข้อ 5: ปุ่มรีเฟรชอยู่ชิดขวา) -->
                     <div class="flex items-center justify-between gap-1.5 flex-nowrap overflow-x-auto custom-scrollbar w-full bg-slate-900/80 px-2.5 py-1.5 rounded-xl border border-slate-800">
-                        <!-- กลุ่มปุ่มเรียงชิดซ้ายในแถวเดียว -->
                         <div class="flex items-center gap-1.5 flex-nowrap shrink-0">
-                            <!-- รอบ 60: ปุ่มซ่อน/แสดงคอลัมน์ + ดรอปดิพแสดงเฉพาะสาย (อยู่ใต้ปุ่ม) -->
-                            <div class="flex flex-col items-stretch gap-1 shrink-0">
-                                <button type="button" id="btnToggleColumnVisibility" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-cyan-300 border border-cyan-500/50 font-semibold transition flex items-center gap-1 shadow whitespace-nowrap shrink-0" title="ตั้งค่าซ่อน/แสดงคอลัมน์ A ถึง U">
-                                    <svg class="w-3.5 h-3.5 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                                    <span id="lblColVisibilityBtn">👁️ ซ่อน/แสดงคอลัมน์ A-U</span>
-                                </button>
-                                <!-- รอบ 60: ดรอปลิดเลือกแสดงเฉพาะสายคูส่งน้ำ หรือทั้งหมด -->
-                                <select id="selectCanalLineFilter" onchange="applyCanalLineFilter(this.value)" class="ew-select text-[11px] px-1.5 py-0.5 rounded-md font-semibold" title="เลือกแสดงเฉพาะสายคูส่งน้ำ หรือแสดงทั้งหมด">
-                                    <option value="all">แสดงทั้งหมด (ทุกสาย)</option>
-                                </select>
-                            </div>
+                            <button type="button" id="btnToggleColumnVisibility" class="ew-soft-btn ew-soft-cyan" title="ตั้งค่าซ่อน/แสดงคอลัมน์ A ถึง U">
+                                <svg class="w-3.5 h-3.5 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                <span id="lblColVisibilityBtn">👁️ ซ่อน/แสดงคอลัมน์ A-U</span>
+                            </button>
 
-                            <!-- Toggle 14 Node Coordinates in Table -->
-                            <button type="button" id="btnToggleNodeCoordsCols" class="px-2 py-1 rounded-lg bg-emerald-950/80 hover:bg-emerald-900/80 text-[11px] text-emerald-300 border border-emerald-500/50 font-semibold transition flex items-center gap-1 shadow whitespace-nowrap shrink-0" title="ตัวเลือกซ่อน/แสดงคอลัมน์ จุด 1-14 (กม.เริ่มต้น และ กม.สิ้นสุด)">
+                            <button type="button" id="btnToggleNodeCoordsCols" class="ew-soft-btn ew-soft-emerald" title="ตัวเลือกซ่อน/แสดงคอลัมน์ จุด 1-14 (กม.เริ่มต้น และ กม.สิ้นสุด)">
                                 <span id="lblToggleNodeCoordsBtn">📍 ซ่อนคอลัมน์ จุด 1-14</span>
                             </button>
 
                             <span class="text-slate-700 font-bold px-0.5 shrink-0">|</span>
 
-                            <!-- ปุ่มแสดง/ซ่อน แต่ละหมวดงาน (ลบ 3 ปุ่มที่กากบาทในรูป 1 ออก และเรียงแถวเดียว) -->
                             <div id="workCategoryToggleButtonsBar" class="flex items-center gap-1 flex-nowrap shrink-0">
                                 <button type="button" data-toggle-work-cat="stripping" class="px-2 py-1 rounded-lg bg-amber-950/80 hover:bg-amber-900 text-[11px] text-amber-200 border border-amber-500/60 font-semibold transition flex items-center gap-1 whitespace-nowrap shrink-0" title="คลิกเพื่อ แสดง/ซ่อน หมวดขุดลอกหน้าดิน">
                                     <span class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
@@ -473,268 +274,968 @@
                             </div>
                         </div>
 
-                        <!-- ปุ่ม รีเฟรชข้อมูล (สัญลักษณ์), ปุ่ม ค่าเริ่มต้นคูส่งน้ำ และ ปุ่ม แสดงข้อมูลตาราง อยู่แถวเดียวกัน ชิดขอบขวา -->
                         <div class="ml-auto shrink-0 pl-1 flex items-center gap-1.5">
-                            <button type="button" id="btnRefreshBoqTableData" class="p-1.5 rounded-lg bg-slate-800 hover:bg-cyan-950/90 text-cyan-300 hover:text-cyan-200 border border-cyan-500/50 hover:border-cyan-400 shadow transition flex items-center justify-center shrink-0" title="รีเฟรชข้อมูล / อัปเดตการคำนวณตารางทั้งหมด" aria-label="รีเฟรชข้อมูล">
+                            <button type="button" id="btnRefreshBoqTableData" class="ew-soft-btn ew-soft-cyan" title="รีเฟรชข้อมูล / อัปเดตการคำนวณตารางทั้งหมด" aria-label="รีเฟรชข้อมูล">
                                 <svg id="iconRefreshBoqTable" class="w-4 h-4 text-cyan-300 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                            </button>
-                            <button type="button" id="btnOpenCanalDefaultsModal" class="px-3 py-1 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-950/60 border border-emerald-400/40 transition flex items-center gap-1.5 whitespace-nowrap shrink-0" title="ตั้งค่าเริ่มต้นคูส่งน้ำ (tw, tb, ts, dt), ตารางมิติ U-SHAPE (VU1-VU6) และการคำนวณ ระดับ TBL. = BL. + H">
-                                <svg class="w-4 h-4 text-emerald-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                                <span>ค่าเริ่มต้นคูส่งน้ำ</span>
-                            </button>
-                            <button type="button" id="btnShowPrintableTableModal" class="px-3 py-1 rounded-lg bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-xs shadow-lg shadow-cyan-950/60 border border-cyan-400/40 transition flex items-center gap-1.5 whitespace-nowrap shrink-0" title="แสดงและพิมพ์ตารางปัจจุบันที่ผู้ใช้ทำงาน พร้อมตารางย่อยสรุปส่วนหัวและรายละเอียดคลองแต่ละสาย">
-                                <svg class="w-4 h-4 text-cyan-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                                <span>แสดงข้อมูลตาราง</span>
                             </button>
                         </div>
 
-                        <!-- ซ่อน 3 ปุ่มที่กากบาทไว้เพื่อความเข้ากันได้ของ DOM -->
                         <div class="hidden" aria-hidden="true">
                             <button type="button" id="btnShowAllWorkCategories"><span>👁️ ทุกหมวดงาน</span></button>
-                            <button type="button"><span>4. ถมแรงคน (ซ้าย)</span></button>
-                            <button type="button"><span>5. ถมแรงคน (ขวา)</span></button>
                         </div>
                     </div>
 
-                    <!-- ซ่อนกล่องตัวกรองเดิมที่กากบาทไว้เพื่อความเข้ากันได้ของ DOM -->
                     <div class="hidden" aria-hidden="true">
                         <select id="selectCategoryView">
                             <option value="all">แสดงครบทุกหมวดงานพร้อมกัน (พิกัดครบ 14 จุด)</option>
                             <option value="all_hide_nodes">แสดงครบทุกหมวดงานพร้อมกัน (ซ่อนคอลัมน์ จุด 1-14)</option>
-                            <option value="stripping">1. ขุดลอกหน้าดิน (เฉพาะจุดที่เกี่ยวข้อง)</option>
-                            <option value="compacted">2. ดินถมบดอัดแน่น 85% (เฉพาะจุดที่เกี่ยวข้อง)</option>
-                            <option value="excavation">3. ดินขุด (เฉพาะจุดที่เกี่ยวข้อง)</option>
-                            <option value="manualLeft">4. ดินถมด้วยแรงคน (ซ้าย) (เฉพาะจุดที่เกี่ยวข้อง)</option>
-                            <option value="manualRight">5. ดินถมด้วยแรงคน (ขวา) (เฉพาะจุดที่เกี่ยวข้อง)</option>
-                            <option value="manualTotal">6. รวมดินถมด้วยแรงคน (ซ้าย+ขวา) (เฉพาะจุดที่เกี่ยวข้อง)</option>
-                            <option value="concrete">7. โครงสร้างคอนกรีต (เฉพาะจุดที่เกี่ยวข้อง)</option>
-                            <option value="subbase">8. คอนกรีตหยาบรองพื้น (เฉพาะจุดที่เกี่ยวข้อง)</option>
+                            <option value="stripping">1. ขุดลอกหน้าดิน</option>
+                            <option value="compacted">2. ดินถมบดอัดแน่น 85%</option>
+                            <option value="excavation">3. ดินขุด</option>
+                            <option value="manualLeft">4. ดินถมด้วยแรงคน (ซ้าย)</option>
+                            <option value="manualRight">5. ดินถมด้วยแรงคน (ขวา)</option>
+                            <option value="manualTotal">6. รวมดินถมด้วยแรงคน (ซ้าย+ขวา)</option>
+                            <option value="concrete">7. โครงสร้างคอนกรีต</option>
+                            <option value="subbase">8. คอนกรีตหยาบรองพื้น</option>
                         </select>
+                    </div>
+
+                    <!-- Column Visibility Modal/Popover Dialog -->
+                    <div id="columnVisibilityModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div class="bg-slate-900 border-2 border-cyan-500/70 rounded-2xl max-w-2xl w-full p-5 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+                            <div class="flex justify-between items-center border-b border-slate-700/80 pb-2.5 shrink-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="p-1.5 rounded-lg bg-cyan-950 border border-cyan-500/50 text-cyan-400">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                    </span>
+                                    <div>
+                                        <h3 class="text-sm font-bold text-white">ตั้งค่าซ่อน / แสดงคอลัมน์ข้อมูล (คอลัมน์ A ถึง U)</h3>
+                                        <p class="text-[11px] text-slate-400">เลือกติ๊กเพื่อแสดง หรือยกเลิกติ๊กเพื่อซ่อนคอลัมน์บนหน้าจอ (ส่วนคำนวณพื้นที่ทุกรายการจะคงไว้เสมอ)</p>
+                                    </div>
+                                </div>
+                                <button type="button" id="btnCloseColVisibilityModal" class="text-slate-400 hover:text-white font-bold p-1">✕</button>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-1.5 shrink-0 text-xs">
+                                <span class="text-slate-400 text-[11px]">ชุดเลือกด่วน:</span>
+                                <button type="button" id="btnPresetColShowAll" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-[11px] font-semibold transition">แสดงทั้งหมด</button>
+                                <button type="button" id="btnPresetColHideDims" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] transition">ซ่อนขนาดโครงสร้าง (L-S)</button>
+                                <button type="button" id="btnPresetColHideCanal" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] transition">ซ่อนข้อมูลคลอง (A-C)</button>
+                                <button type="button" id="btnPresetColHideElevs" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] transition">ซ่อนระดับ (E,G,I,K)</button>
+                                <button type="button" id="btnPresetColToggleNodes" class="px-2.5 py-1 rounded bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-600/50 text-[11px] font-semibold transition">ซ่อน/แสดงคอลัมน์ จุด 1-14</button>
+                            </div>
+
+                            <div id="colVisibilityCheckboxContainer" class="flex-1 overflow-y-auto custom-scrollbar grid grid-cols-2 sm:grid-cols-3 gap-2 p-2.5 bg-slate-950/80 rounded-xl border border-slate-800 text-xs"></div>
+
+                            <div class="flex justify-end pt-2 border-t border-slate-800 shrink-0">
+                                <button type="button" id="btnConfirmColVisibility" class="px-4 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold shadow transition">
+                                    เรียบร้อย
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Main BoQ Table Container -->
+                    <div id="boqTableContainer" tabindex="0" class="overflow-x-auto custom-scrollbar rounded-xl border border-slate-700/80 bg-slate-950/90 shadow-inner focus:outline-none focus:ring-1 focus:ring-cyan-500/50">
+                        <table id="boqTable" class="w-full text-left border-collapse text-xs whitespace-nowrap">
+                            <thead id="boqTableHead" class="bg-slate-900 text-slate-200 sticky top-0 z-20"></thead>
+                            <tbody id="boqTableBody" class="divide-y divide-slate-800/80"></tbody>
+                            <tfoot id="boqTableFoot" class="bg-slate-900/95 border-t-2 border-slate-700 font-bold text-xs"></tfoot>
+                        </table>
+                    </div>
+
+                    <!-- Station Subdivision & Zero-Area Transition Split Toolbar -->
+                    <div class="bg-slate-900/95 border border-cyan-500/40 rounded-xl p-3 space-y-2.5 text-xs shadow-lg">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
+                            <!-- บล็อกที่ 1: แบ่ง กม. ออกเป็นทุกๆ X ม. -->
+                            <div class="bg-slate-950/90 border border-cyan-600/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
+                                <div class="flex items-center justify-between gap-1">
+                                    <div class="font-bold text-cyan-400 text-[11px] flex items-center gap-1.5 flex-wrap">
+                                        <span class="w-2 h-2 rounded-full bg-cyan-400 shrink-0"></span>
+                                        <label for="inputSubdivideStep" class="cursor-pointer">แบ่ง กม. ออกเป็นทุกๆ:</label>
+                                        <input type="number" id="inputSubdivideStep" value="25" min="1" max="1000" step="5" class="no-spinner w-12 bg-slate-900 border border-cyan-500/60 rounded px-1.5 py-0.5 text-center font-mono font-bold text-cyan-300 text-[11px] focus:outline-none focus:ring-1 focus:ring-cyan-400">
+                                        <span class="text-slate-400 font-normal">ม.</span>
+                                    </div>
+                                    <span id="badgeCountStepStations" class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-700/50 shrink-0">0 จุด</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-1">
+                                    <button id="btnSubdivideStations" class="ew-soft-btn ew-soft-cyan w-full justify-center truncate">
+                                        ✂️ แบ่ง กม. ทุกๆ 25 เมตร
+                                    </button>
+                                    <button id="btnRemoveSubdividedStations" class="ew-soft-btn ew-soft-slate w-full justify-center truncate" title="แสดง/ซ่อน จุด กม. ที่เกิดจากการแบ่งทุกๆ X เมตร">
+                                        👁️ แสดง/ซ่อน กม. ที่แบ่ง
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- บล็อกที่ 2: แทรก กม. ดินเดิม -->
+                            <div class="bg-slate-950/90 border border-emerald-600/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
+                                <div class="flex items-center justify-between gap-1">
+                                    <span class="font-bold text-emerald-400 text-[11px] flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                                        แทรก กม. ตามจุดหักดินเดิม (NGL)
+                                    </span>
+                                    <span id="badgeCountNglStations" class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700/50 shrink-0">0 จุด</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-1">
+                                    <button id="btnInsertDigitizerStations" class="ew-soft-btn ew-soft-emerald w-full justify-center truncate" title="แทรกจุดหักดินเดิมเข้าในตาราง">
+                                        ➕ แทรก กม. ดินเดิม
+                                    </button>
+                                    <button type="button" id="btnDeleteDigitizerStationsByLine" class="ew-soft-btn ew-soft-rose w-full justify-center truncate" title="ลบจุด กม. ดินเดิมออกจากตาราง">
+                                        🗑 ลบ กม. ดินเดิม
+                                    </button>
+                                    <button id="btnRemoveDigitizerStations" class="ew-soft-btn ew-soft-slate w-full justify-center truncate" title="แสดง/ซ่อน จุด กม. ที่มาจากจุดหักดินเดิม">
+                                        👁️ แสดง/ซ่อน
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- บล็อกที่ 3: Save / Load / นำเข้า Excel / ส่งออก Excel -->
+                            <div class="sm:col-span-2 xl:col-span-2 bg-slate-950/90 border border-indigo-500/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
+                                <div class="flex items-center justify-between gap-1">
+                                    <span class="font-bold text-indigo-300 text-[11px] flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
+                                        จัดการไฟล์ข้อมูลตาราง (Save / Load / นำเข้า Excel / ส่งออก Excel)
+                                    </span>
+                                    <span id="badgeBoqRowCountInfo" class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-700/50 shrink-0">0 ช่วง กม.</span>
+                                </div>
+                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                                    <button type="button" id="btnBoqSaveFile" class="ew-soft-btn ew-soft-indigo w-full justify-center truncate" title="บันทึกข้อมูลตาราง BoQ และโปรเจกต์เป็นไฟล์ (.json)">
+                                        <span>💾 Save</span>
+                                    </button>
+                                    <button type="button" id="btnBoqLoadFile" class="ew-soft-btn ew-soft-amber w-full justify-center truncate" title="โหลดไฟล์ข้อมูลตาราง BoQ (.json)">
+                                        <span>📂 Load</span>
+                                    </button>
+                                    <button type="button" id="btnBoqImportExcel" class="ew-soft-btn ew-soft-emerald w-full justify-center truncate" title="นำเข้าข้อมูลจากไฟล์ Excel (.xlsx / .csv)">
+                                        <span>📥 นำเข้า Excel</span>
+                                    </button>
+                                    <button type="button" id="btnDownloadExcel" class="ew-soft-btn ew-soft-cyan w-full justify-center truncate" title="ส่งออกข้อมูลและผลลัพธ์ทั้งหมดเข้าไฟล์ Excel (.xlsx)">
+                                        <span>📤 ส่งออก Excel</span>
+                                    </button>
+                                    <input type="file" id="boqLoadJsonInput" accept=".json" class="hidden">
+                                </div>
+                            </div>
+
+                            <div class="hidden" aria-hidden="true">
+                                <select id="selectSubdivideScope"><option value="all">แบ่งทุกช่วง กม. ในตาราง</option></select>
+                                <input type="checkbox" id="chkSubdivideUseDigitizerNgl" checked>
+                                <span id="badgeStationDupStatus"></span>
+                                <button id="btnCheckDeduplicateStations"></button>
+                                <button id="btnSplitZeroAll"></button>
+                                <button id="btnRemoveZeroAll"></button>
+                            </div>
+                        </div>
+
+                        <!-- Row 2: Per-Category Zero-Area Transition Split (4 Cards) -->
+                        <div class="pt-2 border-t border-slate-800/90">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
+                                <div class="bg-slate-950/90 border border-amber-600/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-amber-400 text-[11px] flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                                            1. ขุดลอกหน้าดินเป็น 0
+                                        </span>
+                                        <span id="badgeCountZeroStripping" class="text-[10px] px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-700/50">0 จุด</span>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-1">
+                                        <button id="btnSplitZeroStripping" class="ew-soft-btn ew-soft-amber w-full justify-center truncate">➕ แบ่ง กม.</button>
+                                        <button id="btnRemoveZeroStripping" class="ew-soft-btn ew-soft-slate w-full justify-center truncate">👁️ แสดง/ซ่อน กม.</button>
+                                    </div>
+                                </div>
+
+                                <div class="bg-slate-950/90 border border-teal-600/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-teal-400 text-[11px] flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-teal-500"></span>
+                                            2. ดินถมบดอัด 85% เป็น 0
+                                        </span>
+                                        <span id="badgeCountZeroCompacted" class="text-[10px] px-1.5 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-700/50">0 จุด</span>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-1">
+                                        <button id="btnSplitZeroCompacted" class="ew-soft-btn ew-soft-teal w-full justify-center truncate">➕ แบ่ง กม.</button>
+                                        <button id="btnRemoveZeroCompacted" class="ew-soft-btn ew-soft-slate w-full justify-center truncate">👁️ แสดง/ซ่อน กม.</button>
+                                    </div>
+                                </div>
+
+                                <div class="bg-slate-950/90 border border-orange-600/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-orange-400 text-[11px] flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+                                            3. พื้นที่ดินขุดเป็น 0
+                                        </span>
+                                        <span id="badgeCountZeroExcavation" class="text-[10px] px-1.5 py-0.5 rounded bg-orange-950 text-orange-300 border border-orange-700/50">0 จุด</span>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-1">
+                                        <button id="btnSplitZeroExcavation" class="ew-soft-btn ew-soft-orange w-full justify-center truncate">➕ แบ่ง กม.</button>
+                                        <button id="btnRemoveZeroExcavation" class="ew-soft-btn ew-soft-slate w-full justify-center truncate">👁️ แสดง/ซ่อน กม.</button>
+                                    </div>
+                                </div>
+
+                                <div class="bg-slate-950/90 border border-purple-600/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-purple-400 text-[11px] flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                                            4. ดินถมด้วยแรงคนเป็น 0
+                                        </span>
+                                        <span id="badgeCountZeroManual" class="text-[10px] px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-700/50">0 จุด</span>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-1">
+                                        <button id="btnSplitZeroManualFill" class="ew-soft-btn ew-soft-purple w-full justify-center truncate">➕ แบ่ง กม.</button>
+                                        <button id="btnRemoveZeroManualFill" class="ew-soft-btn ew-soft-slate w-full justify-center truncate">👁️ แสดง/ซ่อน กม.</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- เส้นแบ่งส่วนระหว่าง ส่วนที่ 1 และ ส่วนที่ 2 -->
+        <div class="ew-section-divider" id="ewDividerPart1To2" role="separator">
+            <span class="ew-section-divider-line"></span>
+            <span class="ew-section-divider-badge">ส่วนที่ 2 • กราฟโปรไฟล์ตามยาวและเปรียบเทียบรูปตัดขวาง</span>
+            <span class="ew-section-divider-line"></span>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- ส่วนที่ 2: พื้นที่แสดงกราฟโปรไฟล์ตามยาวและรูปตัดขวางแต่ละแถว              -->
+        <!-- ========================================================================= -->
+        <section id="sectionEarthworkPart2" class="w-full bg-slate-800/40 rounded-2xl border border-slate-700/70 p-3.5 sm:p-5 space-y-4 shadow-2xl ew-part-section">
+            <div class="ew-section-header-wrap">
+                <div class="ew-section-header-top">
+                    <div class="ew-section-header-title-group">
+                        <button type="button" id="btnTogglePart2Collapse" class="ew-line-collapse-btn" onclick="toggleEarthworkPart2Collapse()" title="ย่อ/ขยายส่วนที่ 2">-</button>
+                        <span class="ew-badge ew-badge-cyan">ส่วนที่ 2</span>
+                        <h2 class="ew-section-main-heading">
+                            พื้นที่แสดงกราฟโปรไฟล์ตามยาวและรูปตัดขวางแต่ละแถว
+                        </h2>
                     </div>
                 </div>
 
-                <!-- Column Visibility Modal/Popover Dialog -->
-                <div id="columnVisibilityModal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div class="bg-slate-900 border-2 border-cyan-500/70 rounded-2xl max-w-2xl w-full p-5 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
-                        <div class="flex justify-between items-center border-b border-slate-700/80 pb-2.5 shrink-0">
-                            <div class="flex items-center gap-2">
-                                <span class="p-1.5 rounded-lg bg-cyan-950 border border-cyan-500/50 text-cyan-400">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                                </span>
-                                <div>
-                                    <h3 class="text-sm font-bold text-white">ตั้งค่าซ่อน / แสดงคอลัมน์ข้อมูล (คอลัมน์ A ถึง U)</h3>
-                                    <p class="text-[11px] text-slate-400">เลือกติ๊กเพื่อแสดง หรือยกเลิกติ๊กเพื่อซ่อนคอลัมน์บนหน้าจอ (ส่วนคำนวณพื้นที่ทุกรายการจะคงไว้เสมอ)</p>
-                                </div>
+                <!-- รอบ 63 (ตามรูปที่ 2 ข้อ 1, 2, 3): 1. ดรอปลิสต์เลือกคูส่งน้ำ -> 2. ปุ่มก่อนหน้า/ถัดไป -> 3. ข้อความชื่อคลอง คู กม. ที่เลือก + มิติ TYPE/B/H... อยู่แถวเดียวกัน -->
+                <div id="ewPart2ActiveRowBar" class="bg-slate-900/90 rounded-xl border border-slate-700/80 px-3 py-2 flex flex-wrap justify-between items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-2 min-w-0 flex-1">
+                        <!-- 1. ดรอปลิสต์เพื่อเลือกคูส่งน้ำ -->
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <label for="selectPart2CanalLine" class="text-xs font-bold text-slate-700 whitespace-nowrap">🌊 เลือกคูส่งน้ำ:</label>
+                            <select id="selectPart2CanalLine" onchange="onPart2CanalLineSelectChange(this.value)" class="ew-canal-filter-select" title="เลือกสายคูส่งน้ำ"></select>
+                        </div>
+
+                        <!-- 2. ปุ่ม ก่อนหน้า / ถัดไป อยู่ต่อดรอปลิสต์ -->
+                        <div class="flex items-center gap-1 shrink-0">
+                            <button type="button" id="btnPrevRow" class="ew-soft-btn ew-soft-slate" title="แถวก่อนหน้า (ลูกศรขึ้น)">◀ ก่อนหน้า</button>
+                            <button type="button" id="btnNextRow" class="ew-soft-btn ew-soft-slate" title="แถวถัดไป (ลูกศรลง)">ถัดไป ▶</button>
+                        </div>
+
+                        <!-- 3. ข้อความแสดงชื่อคลอง คู กม. ที่เลือก และมิติ TYPE/B/H... อยู่แถวเดียวกันต่อท้าย -->
+                        <div class="flex flex-wrap items-center gap-2 text-xs min-w-0">
+                            <span id="cmpRowBadge" class="ew-badge ew-badge-cyan shrink-0">ไม่มีข้อมูล (0 แถว)</span>
+                            <strong id="cmpCanalTitle" class="text-xs font-bold text-slate-800 whitespace-nowrap m-0">-</strong>
+                            <span class="text-slate-400 font-bold">|</span>
+                            <span id="cmpStructSummary" class="text-[11.5px] font-medium text-slate-600 m-0">ยังไม่มีข้อมูลในตาราง</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+                        <button type="button" id="btnShowRowCalcSheet" class="ew-soft-btn ew-soft-indigo" title="แสดงรายการคำนวณเปรียบเทียบทั้ง 2 รูปตัดและคำนวณปริมาณงานสำหรับแถวนี้">
+                            <svg class="w-4 h-4 text-cyan-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            <span>แสดงรายการคำนวณ</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="earthworkPart2Body" class="space-y-4">
+                <!-- Interactive Longitudinal Profile Preview (NGL vs BL vs TBL across all table stations) -->
+                <div class="bg-slate-950/90 rounded-2xl border border-slate-800 p-3 space-y-1.5 shadow-lg">
+                    <div class="flex flex-wrap justify-between items-center gap-2 text-xs">
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-slate-200">กราฟโปรไฟล์ตามยาว (Longitudinal Profile: NGL / BL. / TBL.) จากข้อมูลในตาราง:</span>
+                            <span class="text-[11px] text-slate-400">(คลิกที่ช่วง กม. บนกราฟเพื่อเลือกแถวเปรียบเทียบรูปตัดขวางได้ทันที)</span>
+                        </div>
+                        <div class="flex items-center gap-4 text-[11px]">
+                            <span class="flex items-center gap-1 text-emerald-400"><span class="w-3 h-0.5 bg-emerald-400 inline-block"></span> ระดับดินเดิม (NGL)</span>
+                            <span class="flex items-center gap-1 text-sky-400"><span class="w-3 h-0.5 bg-sky-400 inline-block"></span> ระดับท้องคลอง (BL.)</span>
+                            <span class="flex items-center gap-1 text-rose-400"><span class="w-3 h-0.5 bg-rose-400 inline-block"></span> ระดับหลังคลอง (TBL.)</span>
+                        </div>
+                    </div>
+                    <div class="relative h-40 w-full bg-slate-950 rounded-xl border border-slate-800/80 overflow-hidden">
+                        <canvas id="canvasLongProfile" class="w-full h-full cursor-crosshair block"></canvas>
+                    </div>
+                    <div class="pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 text-xs">
+                        <div class="flex items-center gap-2.5 flex-1 min-w-0">
+                            <span class="text-[11px] font-semibold text-cyan-300 shrink-0 flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"></path></svg>
+                                เลื่อนตรวจสอบ กม.:
+                            </span>
+                            <div class="flex-1 relative flex items-center">
+                                <input type="range" id="profileScrubberSlider" min="0" max="200" step="1" value="0" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-ew-resize accent-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400" title="ลากเลื่อนเพื่อดูค่า กม. และระดับทั้ง 3 ค่า วิ่งตามเส้น">
                             </div>
-                            <button type="button" id="btnCloseColVisibilityModal" class="text-slate-400 hover:text-white font-bold p-1">✕</button>
                         </div>
-
-                        <!-- Quick Presets -->
-                        <div class="flex flex-wrap items-center gap-1.5 shrink-0 text-xs">
-                            <span class="text-slate-400 text-[11px]">ชุดเลือกด่วน:</span>
-                            <button type="button" id="btnPresetColShowAll" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-[11px] font-semibold transition">แสดงทั้งหมด</button>
-                            <button type="button" id="btnPresetColHideDims" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] transition">ซ่อนขนาดโครงสร้าง (L-S)</button>
-                            <button type="button" id="btnPresetColHideCanal" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] transition">ซ่อนข้อมูลคลอง (A-C)</button>
-                            <button type="button" id="btnPresetColHideElevs" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] transition">ซ่อนระดับ (E,G,I,K)</button>
-                            <button type="button" id="btnPresetColToggleNodes" class="px-2.5 py-1 rounded bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-600/50 text-[11px] font-semibold transition">ซ่อน/แสดงคอลัมน์ จุด 1-14</button>
-                        </div>
-
-                        <!-- Column Checkbox List -->
-                        <div id="colVisibilityCheckboxContainer" class="flex-1 overflow-y-auto custom-scrollbar grid grid-cols-2 sm:grid-cols-3 gap-2 p-2.5 bg-slate-950/80 rounded-xl border border-slate-800 text-xs">
-                            <!-- Populated dynamically -->
-                        </div>
-
-                        <div class="flex justify-end pt-2 border-t border-slate-800 shrink-0">
-                            <button type="button" id="btnConfirmColVisibility" class="px-4 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold shadow transition">
-                                เรียบร้อย
+                        <div class="flex items-center gap-2 shrink-0">
+                            <div class="inline-flex items-center gap-2 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-700/80 text-[11px] font-mono shadow-sm">
+                                <span class="text-slate-400">ตำแหน่ง:</span>
+                                <strong id="profileScrubBadgeSta" class="text-cyan-300 font-bold">-</strong>
+                                <span class="text-slate-600">|</span>
+                                <span class="text-emerald-400">NGL: <strong id="profileScrubBadgeNgl">-</strong></span>
+                                <span class="text-slate-600">|</span>
+                                <span class="text-sky-400">BL: <strong id="profileScrubBadgeBl">-</strong></span>
+                                <span class="text-slate-600">|</span>
+                                <span class="text-rose-400">TBL: <strong id="profileScrubBadgeTbl">-</strong></span>
+                            </div>
+                            <button type="button" id="btnSnapProfileToActiveRow" class="ew-soft-btn ew-soft-cyan" title="เลื่อนตัวเลื่อนไปที่จุดเริ่มต้นของแถวที่กำลังเลือก">
+                                🎯 ตามแถวที่เลือก
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Main BoQ Table Container -->
-                <div id="boqTableContainer" tabindex="0" class="overflow-x-auto custom-scrollbar rounded-xl border border-slate-700/80 bg-slate-950/90 shadow-inner focus:outline-none focus:ring-1 focus:ring-cyan-500/50">
-                    <table id="boqTable" class="w-full text-left border-collapse text-xs whitespace-nowrap">
-                        <thead id="boqTableHead" class="bg-slate-900 text-slate-200 sticky top-0 z-20"></thead>
-                        <tbody id="boqTableBody" class="divide-y divide-slate-800/80"></tbody>
-                        <tfoot id="boqTableFoot" class="bg-slate-900/95 border-t-2 border-slate-700 font-bold text-xs"></tfoot>
-                    </table>
-                </div>
-
-                <!-- Station Subdivision & Zero-Area Transition Split Toolbar (ย้ายมาไว้ด้านล่างตาราง ตามรูป 1) -->
-                <div id="ewBottomToolbar" class="bg-slate-900/95 border border-cyan-500/40 rounded-xl p-3 space-y-2.5 text-xs shadow-lg">
-                    <!-- Row 1: 3 Card Blocks Matching Row 2 Style -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
-                        <!-- บล็อกที่ 1: แบ่ง กม. ออกเป็นทุกๆ X ม. -->
-                        <div class="bg-slate-950/90 border border-cyan-600/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
-                            <div class="flex items-center justify-between gap-1">
-                                <div class="font-bold text-cyan-400 text-[11px] flex items-center gap-1.5 flex-wrap">
-                                    <span class="w-2 h-2 rounded-full bg-cyan-400 shrink-0"></span>
-                                    <label for="inputSubdivideStep" class="cursor-pointer">แบ่ง กม. ออกเป็นทุกๆ:</label>
-                                    <input type="number" id="inputSubdivideStep" value="25" min="1" max="1000" step="5" class="no-spinner w-12 bg-slate-900 border border-cyan-500/60 rounded px-1.5 py-0.5 text-center font-mono font-bold text-cyan-300 text-[11px] focus:outline-none focus:ring-1 focus:ring-cyan-400">
-                                    <span class="text-slate-400 font-normal">ม.</span>
+                <!-- Side-by-Side 2 Cross-Sections Comparison & Active Row Volume Breakdown (ตามรูปที่ 2 ข้อ 1: ปรับความสูงลงมาให้เท่ากัน) -->
+                <div class="grid grid-cols-1 xl:grid-cols-12 gap-3 items-stretch ew-compare-equal-grid">
+                    <!-- Left & Right Comparison Canvases + Shared Display Controls Bar -->
+                    <div class="xl:col-span-8 flex flex-col justify-between gap-2 h-full">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch flex-1">
+                            <!-- Left Comparison Canvas: Start Station (กม.เริ่มต้น) -->
+                            <div class="bg-white rounded-xl border border-slate-300 flex flex-col overflow-hidden relative shadow-sm ew-compare-card h-full">
+                                <div class="bg-slate-900/90 border-b border-slate-800 px-3.5 py-2 flex justify-between items-center z-10 shrink-0">
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-2 py-0.5 rounded bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 text-xs font-bold">รูปที่ 1 (A1)</span>
+                                        <span id="lblCompareStartTitle" class="text-xs font-semibold text-slate-100">กม.เริ่มต้น: -</span>
+                                    </div>
+                                    <button id="btnResetCompareStart" class="ew-soft-btn ew-soft-slate">
+                                        รีเซ็ตมุมมอง
+                                    </button>
                                 </div>
-                                <span id="badgeCountStepStations" class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-700/50 shrink-0">0 จุด</span>
-                            </div>
-                            <div class="grid grid-cols-2 gap-1">
-                                <button id="btnSubdivideStations" class="py-1 px-2 rounded-lg bg-cyan-600/90 hover:bg-cyan-500 text-white font-semibold text-[11px] transition truncate">
-                                    ✂️ แบ่ง กม. ทุกๆ 25 เมตร
-                                </button>
-                                <button id="btnRemoveSubdividedStations" class="py-1 px-2 rounded-lg bg-slate-800 hover:bg-rose-900/80 text-slate-300 hover:text-rose-200 border border-slate-700 text-[11px] font-medium transition truncate" title="แสดง/ซ่อน จุด กม. ที่เกิดจากการแบ่งทุกๆ X เมตร">
-                                    👁️ แสดง/ซ่อน กม. ที่แบ่ง
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- บล็อกที่ 2: แทรก กม. ดินเดิม -->
-                        <div class="bg-slate-950/90 border border-emerald-600/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
-                            <div class="flex items-center justify-between gap-1">
-                                <span class="font-bold text-emerald-400 text-[11px] flex items-center gap-1.5">
-                                    <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
-                                    แทรก กม. ตามจุดหักดินเดิม (NGL)
-                                </span>
-                                <span id="badgeCountNglStations" class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700/50 shrink-0">0 จุด</span>
-                            </div>
-                            <div class="grid grid-cols-3 gap-1">
-                                <button id="btnInsertDigitizerStations" class="py-1 px-1.5 rounded-lg bg-emerald-600/85 hover:bg-emerald-500 text-white font-semibold text-[11px] transition truncate" title="แทรกจุดหักดินเดิมจากส่วนที่ 2 เข้ามาในตาราง (กรณีมีหลายสายจะมีหน้าต่างให้เลือกสาย)">
-                                    ➕ แทรก กม. ดินเดิม
-                                </button>
-                                <button type="button" id="btnDeleteDigitizerStationsByLine" class="py-1 px-1.5 rounded-lg bg-rose-900/80 hover:bg-rose-700 text-rose-200 border border-rose-600/50 font-semibold text-[11px] transition truncate" title="ลบจุด กม. ดินเดิมออกจากตาราง (กรณีมีหลายสายจะมีหน้าต่างให้เลือกสาย)">
-                                    🗑 ลบ กม. ดินเดิม
-                                </button>
-                                <button id="btnRemoveDigitizerStations" class="py-1 px-1.5 rounded-lg bg-slate-800 hover:bg-rose-900/80 text-slate-300 hover:text-rose-200 border border-slate-700 text-[11px] font-medium transition truncate" title="แสดง/ซ่อน จุด กม. ที่มาจากจุดหักดินเดิม">
-                                    👁️ แสดง/ซ่อน
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- บล็อกที่ 3: Save / Load / นำเข้า Excel / ส่งออก Excel (ตามรูป 1: สลับปุ่มและเปลี่ยนเป็น ส่งออก Excel) -->
-                        <div class="sm:col-span-2 xl:col-span-2 bg-slate-950/90 border border-indigo-500/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
-                            <div class="flex items-center justify-between gap-1">
-                                <span class="font-bold text-indigo-300 text-[11px] flex items-center gap-1.5">
-                                    <span class="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
-                                    จัดการไฟล์ข้อมูลตาราง (Save / Load / นำเข้า Excel / ส่งออก Excel)
-                                </span>
-                                <span id="badgeBoqRowCountInfo" class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-700/50 shrink-0">0 ช่วง กม.</span>
-                            </div>
-                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                                <button type="button" id="btnBoqSaveFile" class="py-1 px-2 rounded-lg bg-indigo-950/90 hover:bg-indigo-800 text-indigo-200 border border-indigo-500/50 text-[11px] font-bold transition flex items-center justify-center gap-1" title="บันทึกข้อมูลตาราง BoQ และโปรเจกต์เป็นไฟล์ (.json)">
-                                    <span>💾 Save</span>
-                                </button>
-                                <button type="button" id="btnBoqLoadFile" class="py-1 px-2 rounded-lg bg-amber-950/90 hover:bg-amber-800 text-amber-200 border border-amber-500/50 text-[11px] font-bold transition flex items-center justify-center gap-1" title="โหลดไฟล์ข้อมูลตาราง BoQ (.json)">
-                                    <span>📂 Load</span>
-                                </button>
-                                <button type="button" id="btnBoqImportExcel" class="py-1 px-2 rounded-lg bg-emerald-600/90 hover:bg-emerald-500 text-white border border-emerald-400/50 text-[11px] font-bold transition flex items-center justify-center gap-1" title="นำเข้าข้อมูลจากไฟล์ Excel (.xlsx / .csv)">
-                                    <span>📥 นำเข้า Excel</span>
-                                </button>
-                                <button type="button" id="btnDownloadExcel" class="py-1 px-2 rounded-lg bg-cyan-600/90 hover:bg-cyan-500 text-white border border-cyan-400/50 text-[11px] font-bold transition flex items-center justify-center gap-1" title="ส่งออกข้อมูลและผลลัพธ์ทั้งหมดเข้าไฟล์ Excel (.xlsx)">
-                                    <span>📤 ส่งออก Excel</span>
-                                </button>
-                                <div class="hidden" aria-hidden="true">
-                                    <button type="button">3. คลิกเก็บจุดข้อมูล (NGL) 0 จุด</button>
-                                    <button type="button">👁️ แสดง/ซ่อน กม. ดินเดิม</button>
-                                    <button type="button">📍 ซ่อนพิกัดจุด (14 จุด)</button>
-                                    <button type="button">📤 ส่งเข้า Excel</button>
+                                <div id="badgeCompareStartInfo" class="bg-slate-900/60 px-3.5 py-1 text-[11px] text-slate-400 border-b border-slate-800/80 flex flex-wrap justify-between gap-2 shrink-0">
+                                    <span>NGL: <strong class="text-slate-500">-</strong></span>
+                                    <span>BL.: <strong class="text-slate-500">-</strong></span>
+                                    <span>TBL.: <strong class="text-slate-500">-</strong></span>
                                 </div>
-                                <input type="file" id="boqLoadJsonInput" accept=".json" class="hidden">
+                                <canvas id="canvasCompareStart" class="w-full flex-1 cursor-grab active:cursor-grabbing ew-compare-canvas"></canvas>
+                            </div>
+
+                            <!-- Right Comparison Canvas: End Station (กม.สิ้นสุด) -->
+                            <div class="bg-white rounded-xl border border-slate-300 flex flex-col overflow-hidden relative shadow-sm ew-compare-card h-full">
+                                <div class="bg-slate-900/90 border-b border-slate-800 px-3.5 py-2 flex justify-between items-center z-10 shrink-0">
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/50 text-amber-300 text-xs font-bold">รูปที่ 2 (A2)</span>
+                                        <span id="lblCompareEndTitle" class="text-xs font-semibold text-slate-100">กม.สิ้นสุด: -</span>
+                                    </div>
+                                    <button id="btnResetCompareEnd" class="ew-soft-btn ew-soft-slate">
+                                        รีเซ็ตมุมมอง
+                                    </button>
+                                </div>
+                                <div id="badgeCompareEndInfo" class="bg-slate-900/60 px-3.5 py-1 text-[11px] text-slate-400 border-b border-slate-800/80 flex flex-wrap justify-between gap-2 shrink-0">
+                                    <span>NGL: <strong class="text-slate-500">-</strong></span>
+                                    <span>BL.: <strong class="text-slate-500">-</strong></span>
+                                    <span>TBL.: <strong class="text-slate-500">-</strong></span>
+                                </div>
+                                <canvas id="canvasCompareEnd" class="w-full flex-1 cursor-grab active:cursor-grabbing ew-compare-canvas"></canvas>
                             </div>
                         </div>
 
-                        <!-- Preserved hidden elements for backward compatibility -->
-                        <div class="hidden" aria-hidden="true">
-                            <select id="selectSubdivideScope"><option value="all">แบ่งทุกช่วง กม. ในตาราง</option></select>
-                            <input type="checkbox" id="chkSubdivideUseDigitizerNgl" checked>
-                            <span id="badgeStationDupStatus"></span>
-                            <button id="btnCheckDeduplicateStations"></button>
-                            <button id="btnSplitZeroAll"></button>
-                            <button id="btnRemoveZeroAll"></button>
+                        <!-- Shared Display & Area Color Controls Bar -->
+                        <div id="cmpDisplayControlsBar" class="shrink-0 bg-slate-900/95 px-2 py-1.5 rounded-xl border border-slate-700/80 flex items-center justify-between gap-1 flex-nowrap overflow-x-auto custom-scrollbar text-xs shadow-lg">
+                            <button type="button" id="btnCmpToggleAreaStripping" class="ew-soft-btn ew-soft-amber flex-1 min-w-0 justify-center truncate">
+                                <span id="dotCmpAreaStripping" class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+                                <span id="lblCmpAreaStripping" class="truncate">แสดงขุดลอกหน้าดิน</span>
+                            </button>
+                            <button type="button" id="btnCmpToggleAreaCompacted" class="ew-soft-btn ew-soft-teal flex-1 min-w-0 justify-center truncate">
+                                <span id="dotCmpAreaCompacted" class="w-2 h-2 rounded-full bg-teal-400 shrink-0"></span>
+                                <span id="lblCmpAreaCompacted" class="truncate">แสดงดินถมบดอัดแน่น 85%</span>
+                            </button>
+                            <button type="button" id="btnCmpToggleAreaExcavation" class="ew-soft-btn ew-soft-orange flex-1 min-w-0 justify-center truncate">
+                                <span id="dotCmpAreaExcavation" class="w-2 h-2 rounded-full bg-orange-400 shrink-0"></span>
+                                <span id="lblCmpAreaExcavation" class="truncate">แสดงดินขุด</span>
+                            </button>
+                            <button type="button" id="btnCmpToggleAreaManualFill" class="ew-soft-btn ew-soft-purple flex-1 min-w-0 justify-center truncate">
+                                <span id="dotCmpAreaManualFill" class="w-2 h-2 rounded-full bg-purple-400 shrink-0"></span>
+                                <span id="lblCmpAreaManualFill" class="truncate">แสดงดินถมด้วยแรงคน</span>
+                            </button>
+                            <button type="button" id="btnCmpToggleDims" class="ew-soft-btn ew-soft-cyan flex-1 min-w-0 justify-center truncate">
+                                <span id="dotCmpDims" class="w-2 h-2 rounded-full bg-cyan-400 shrink-0"></span>
+                                <span id="lblCmpDims" class="truncate">แสดงมิติโครงสร้าง</span>
+                            </button>
+                            <button type="button" id="btnCmpToggleWidths" class="ew-soft-btn ew-soft-pink flex-1 min-w-0 justify-center truncate">
+                                <span id="dotCmpWidths" class="w-2 h-2 rounded-full bg-pink-400 shrink-0"></span>
+                                <span id="lblCmpWidths" class="truncate">แสดงความกว้างขุดลอก/คันดิน</span>
+                            </button>
+                            <button type="button" id="btnCmpResetBothViews" class="ew-soft-btn ew-soft-slate shrink-0 px-2 py-1" title="รีเซ็ตมุมมองทั้ง 2 รูปตัดและแสดงค่าทั้งหมด">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Row 2: Per-Category Zero-Area Transition Split (4 Cards) -->
-                    <div class="pt-2 border-t border-slate-800/90">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
-                            <!-- 1. ขุดลอกหน้าดิน = 0 -->
-                            <div class="bg-slate-950/90 border border-amber-600/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
-                                <div class="flex items-center justify-between">
-                                    <span class="font-bold text-amber-400 text-[11px] flex items-center gap-1.5">
-                                        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                                        1. ขุดลอกหน้าดินเป็น 0
-                                    </span>
-                                    <span id="badgeCountZeroStripping" class="text-[10px] px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-700/50">0 จุด</span>
+                    <!-- Comparison Data Table for Selected Row -->
+                    <div class="xl:col-span-4 bg-slate-900/95 rounded-2xl border border-slate-700/80 p-3.5 flex flex-col justify-between shadow-xl h-full">
+                        <div class="space-y-2.5">
+                            <!-- Distance L and Formula Banner -->
+                            <div class="grid grid-cols-3 gap-2 bg-slate-800/70 rounded-xl p-2.5 border border-slate-700/60 text-xs">
+                                <div>
+                                    <span class="text-[11px] text-slate-400 block">ช่วง กม.เริ่มต้น - สิ้นสุด</span>
+                                    <strong id="cmpStaRange" class="text-cyan-300 text-sm">-</strong>
                                 </div>
-                                <div class="grid grid-cols-2 gap-1">
-                                    <button id="btnSplitZeroStripping" class="py-1 px-2 rounded-lg bg-amber-600/80 hover:bg-amber-500 text-white font-semibold text-[11px] transition">
-                                        ➕ แบ่ง กม.
-                                    </button>
-                                    <button id="btnRemoveZeroStripping" class="py-1 px-2 rounded-lg bg-slate-800 hover:bg-rose-900/80 text-slate-300 hover:text-rose-200 border border-slate-700 text-[11px] font-medium transition">
-                                        👁️ แสดง/ซ่อน กม.
-                                    </button>
+                                <div class="text-center border-x border-slate-700/70 px-2">
+                                    <span class="text-[11px] text-slate-400 block">ระยะทางระหว่าง กม. (L)</span>
+                                    <strong id="cmpLengthL" class="text-emerald-400 text-sm">0.00 m</strong>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-[11px] text-slate-400 block">สูตรการคำนวณปริมาณงาน</span>
+                                    <strong class="text-amber-300 text-xs">(A1 + A2) × 0.5 × L</strong>
                                 </div>
                             </div>
 
-                            <!-- 2. ดินถมบดอัดแน่น 85% = 0 -->
-                            <div class="bg-slate-950/90 border border-teal-600/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
-                                <div class="flex items-center justify-between">
-                                    <span class="font-bold text-teal-400 text-[11px] flex items-center gap-1.5">
-                                        <span class="w-2 h-2 rounded-full bg-teal-500"></span>
-                                        2. ดินถมบดอัด 85% เป็น 0
-                                    </span>
-                                    <span id="badgeCountZeroCompacted" class="text-[10px] px-1.5 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-700/50">0 จุด</span>
-                                </div>
-                                <div class="grid grid-cols-2 gap-1">
-                                    <button id="btnSplitZeroCompacted" class="py-1 px-2 rounded-lg bg-teal-600/80 hover:bg-teal-500 text-white font-semibold text-[11px] transition">
-                                        ➕ แบ่ง กม.
-                                    </button>
-                                    <button id="btnRemoveZeroCompacted" class="py-1 px-2 rounded-lg bg-slate-800 hover:bg-rose-900/80 text-slate-300 hover:text-rose-200 border border-slate-700 text-[11px] font-medium transition">
-                                        👁️ แสดง/ซ่อน กม.
-                                    </button>
-                                </div>
+                            <!-- Detailed Comparison Table for the Selected Row -->
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse text-xs">
+                                    <thead>
+                                        <tr class="border-b border-slate-800 text-[11px] text-slate-400">
+                                            <th class="py-1.5 font-medium">หมวดงาน</th>
+                                            <th class="py-1.5 font-medium text-right text-cyan-300">A1 (m²)</th>
+                                            <th class="py-1.5 font-medium text-right text-amber-300">A2 (m²)</th>
+                                            <th class="py-1.5 font-medium text-right text-slate-300">L (m)</th>
+                                            <th class="py-1.5 font-semibold text-right text-emerald-300">ปริมาณ (m³)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="cmpBreakdownBody" class="divide-y divide-slate-800/70">
+                                        <!-- Dynamically populated by updateComparisonView() -->
+                                    </tbody>
+                                </table>
                             </div>
+                        </div>
 
-                            <!-- 3. ดินขุด = 0 -->
-                            <div class="bg-slate-950/90 border border-orange-600/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
-                                <div class="flex items-center justify-between">
-                                    <span class="font-bold text-orange-400 text-[11px] flex items-center gap-1.5">
-                                        <span class="w-2 h-2 rounded-full bg-orange-500"></span>
-                                        3. พื้นที่ดินขุดเป็น 0
-                                    </span>
-                                    <span id="badgeCountZeroExcavation" class="text-[10px] px-1.5 py-0.5 rounded bg-orange-950 text-orange-300 border border-orange-700/50">0 จุด</span>
-                                </div>
-                                <div class="grid grid-cols-2 gap-1">
-                                    <button id="btnSplitZeroExcavation" class="py-1 px-2 rounded-lg bg-orange-600/80 hover:bg-orange-500 text-white font-semibold text-[11px] transition">
-                                        ➕ แบ่ง กม.
-                                    </button>
-                                    <button id="btnRemoveZeroExcavation" class="py-1 px-2 rounded-lg bg-slate-800 hover:bg-rose-900/80 text-slate-300 hover:text-rose-200 border border-slate-700 text-[11px] font-medium transition">
-                                        👁️ แสดง/ซ่อน กม.
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- 4. ดินถมด้วยแรงคน = 0 -->
-                            <div class="bg-slate-950/90 border border-purple-600/40 rounded-xl p-2 flex flex-col justify-between gap-1.5">
-                                <div class="flex items-center justify-between">
-                                    <span class="font-bold text-purple-400 text-[11px] flex items-center gap-1.5">
-                                        <span class="w-2 h-2 rounded-full bg-purple-500"></span>
-                                        4. ดินถมด้วยแรงคนเป็น 0
-                                    </span>
-                                    <span id="badgeCountZeroManual" class="text-[10px] px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-700/50">0 จุด</span>
-                                </div>
-                                <div class="grid grid-cols-2 gap-1">
-                                    <button id="btnSplitZeroManualFill" class="py-1 px-2 rounded-lg bg-purple-600/80 hover:bg-purple-500 text-white font-semibold text-[11px] transition">
-                                        ➕ แบ่ง กม.
-                                    </button>
-                                    <button id="btnRemoveZeroManualFill" class="py-1 px-2 rounded-lg bg-slate-800 hover:bg-rose-900/80 text-slate-300 hover:text-rose-200 border border-slate-700 text-[11px] font-medium transition">
-                                        👁️ แสดง/ซ่อน กม.
-                                    </button>
-                                </div>
+                        <!-- รอบ 62 (ตามรูปที่ 2 ข้อ 2): ปุ่มส่งข้อมูลไปแสดงในส่วนที่ 3 (แบบจำลองรูปตัดขวางงานดิน) -->
+                        <div class="mt-3 pt-2 border-t border-slate-800 flex flex-wrap justify-between items-center gap-1.5 text-[11px] text-slate-400">
+                            <span>ส่งค่าจากแถวนี้ไปดูที่รูปตัดขวางหลัก (ส่วนที่ 3):</span>
+                            <div class="flex gap-1.5">
+                                <button type="button" id="btnLoadStartToMain" class="ew-soft-btn ew-soft-cyan">ดูรูปที่ 1 ในส่วนที่ 3</button>
+                                <button type="button" id="btnLoadEndToMain" class="ew-soft-btn ew-soft-amber">ดูรูปที่ 2 ในส่วนที่ 3</button>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
             </div>
         </section>
+
+        <!-- เส้นแบ่งส่วนระหว่าง ส่วนที่ 2 และ ส่วนที่ 3 -->
+        <div class="ew-section-divider" id="ewDividerPart2To3" role="separator">
+            <span class="ew-section-divider-line"></span>
+            <span class="ew-section-divider-badge">ส่วนที่ 3 • แบบจำลองรูปตัดขวางงานดิน (อัตราส่วน 1:1)</span>
+            <span class="ew-section-divider-line"></span>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- ส่วนที่ 3: แบบจำลองรูปตัดขวางงานดิน (นำส่วนที่ 1 จาก canal_cross_section_V2 มาใส่) -->
+        <!-- ========================================================================= -->
+        <section id="sectionCrossSection" class="w-full bg-slate-800/40 rounded-2xl border border-slate-700/70 p-2.5 sm:p-3 space-y-2 shadow-2xl ew-part-section ew-part3-compact-section">
+            <!-- Section 3 Header Bar -->
+            <div class="ew-section-header-wrap">
+                <div class="flex flex-wrap justify-between items-center gap-2">
+                    <div class="ew-section-header-top">
+                        <div class="ew-section-header-title-group">
+                            <button type="button" id="btnToggleCrossSectionCollapse" class="ew-line-collapse-btn" onclick="toggleCrossSectionPart3Collapse()" title="ย่อ/ขยายส่วนที่ 3">-</button>
+                            <span class="ew-badge ew-badge-purple">ส่วนที่ 3</span>
+                            <h2 class="ew-section-main-heading">
+                                แบบจำลองรูปตัดขวางงานดิน (แบบจำลองรูปตัดคูส่งน้ำตามค่าระดับดินเดิม พร้อมตารางพื้นที่ตามหมวดงานดิน อัตราส่วนสมจริง 1:1)
+                            </h2>
+                        </div>
+                        <p class="ew-section-sub-desc">
+                            ปรับค่าระดับดินเดิม (NGL) ด้วยแถบเลื่อนแนวตั้ง (จุดกึ่งกลางอยู่ที่ระดับท้องคลอง BL.) • กรอกขนาดโครงสร้างทางแถบขวา (ย่อเก็บเข้าด้านข้างได้)
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button type="button" id="btnShowCalcSheet" class="ew-soft-btn ew-soft-indigo" title="แสดงรายการคำนวณแบบละเอียดของรูปตัดขวางในส่วนที่ 3">
+                            <svg class="w-4 h-4 text-cyan-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            <span>แสดงรายการคำนวณ</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Collapsible Body of Cross-Section (Part 3) -->
+            <div id="crossSectionBody" class="w-full flex flex-col lg:flex-row gap-3 items-stretch ew-part3-body">
+                <!-- 1A. Left Control Panel: Area Summary Table + Quick Preset Buttons (ย่อเก็บเข้าด้านข้างซ้ายได้) -->
+                <aside id="leftSidebarExpanded" class="w-full lg:w-[26%] xl:w-[25%] shrink-0 bg-slate-900/90 rounded-2xl p-3 border border-slate-700/70 flex flex-col justify-between gap-2.5 shadow-xl ew-part3-left-sidebar">
+                    <div id="statsBox" class="bg-slate-950/90 rounded-xl p-2.5 border border-slate-800 text-xs space-y-1.5">
+                        <div class="text-slate-200 font-semibold border-b border-slate-800 pb-1 flex justify-between items-center gap-1">
+                            <span>ตารางแสดงค่าพื้นที่ (Area Summary)</span>
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                <span class="text-[11px] text-slate-400 font-normal">หน่วย: ตร.ม. (m²)</span>
+                                <button type="button" id="btnCollapseLeftSidebar" class="ew-line-collapse-btn" title="ย่อแถบตารางแสดงค่าพื้นที่เข้าด้านข้างซ้าย">
+                                    <span>◀</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap justify-between gap-1 text-slate-300 text-[11px] bg-slate-900 px-2 py-1 rounded-lg border border-slate-800">
+                            <span>งานดิน: <strong id="statNglStatus" class="text-amber-400">งานถมดินสูง (Fill)</strong></span>
+                            <span>ลอกหน้าดิน: <strong id="statTopsoilElev" class="text-amber-400">+99.36 m</strong></span>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="border-b border-slate-800 text-[11px] text-slate-400">
+                                        <th class="py-1 font-medium">รายการพื้นที่</th>
+                                        <th class="py-1 font-medium text-center">จุด Node</th>
+                                        <th class="py-1 font-medium text-right">พื้นที่ (m²)</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-800/70 text-xs">
+                                    <tr>
+                                        <td class="py-1 flex items-center gap-1.5">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block shrink-0"></span>
+                                            <span>ขุดลอกหน้าดิน</span>
+                                        </td>
+                                        <td id="nodesStripping" class="py-1 text-center text-[11px] text-slate-400">6-7-8-9</td>
+                                        <td id="valAreaStripping" class="py-1 text-right font-semibold text-amber-400">0.000</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-1 flex items-center gap-1.5">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-teal-500 inline-block shrink-0"></span>
+                                            <span>ดินถมบดอัดแน่น 85%</span>
+                                        </td>
+                                        <td id="nodesCompacted" class="py-1 text-center text-[11px] text-slate-400">5-6-7-8-9-10</td>
+                                        <td id="valAreaCompacted" class="py-1 text-right font-semibold text-teal-400">0.000</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-1 flex items-center gap-1.5">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block shrink-0"></span>
+                                            <span>ดินขุด</span>
+                                        </td>
+                                        <td id="nodesExcavation" class="py-1 text-center text-[11px] text-slate-400">5-7-8-10</td>
+                                        <td id="valAreaExcavation" class="py-1 text-right font-semibold text-orange-400">0.000</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-1 flex items-center gap-1.5">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block shrink-0"></span>
+                                            <span>ดินถมด้วยแรงคน (ซ้าย)</span>
+                                        </td>
+                                        <td id="nodesManualLeft" class="py-1 text-center text-[11px] text-slate-400">1-2-3-4-5-6</td>
+                                        <td id="valAreaManualLeft" class="py-1 text-right font-semibold text-purple-300">0.000</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-1 flex items-center gap-1.5">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block shrink-0"></span>
+                                            <span>ดินถมด้วยแรงคน (ขวา)</span>
+                                        </td>
+                                        <td id="nodesManualRight" class="py-1 text-center text-[11px] text-slate-400">9-10-11-12-13-14</td>
+                                        <td id="valAreaManualRight" class="py-1 text-right font-semibold text-purple-300">0.000</td>
+                                    </tr>
+                                    <tr class="bg-purple-950/30">
+                                        <td class="py-1 pl-4 text-purple-300 font-medium">รวมดินถมด้วยแรงคน (ซ้าย+ขวา)</td>
+                                        <td class="py-1 text-center text-[11px] text-slate-500">-</td>
+                                        <td id="valAreaManualTotal" class="py-1 text-right font-bold text-purple-400">0.000</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-1 flex items-center gap-1.5">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-sky-400 inline-block shrink-0"></span>
+                                            <span>โครงสร้างคอนกรีต</span>
+                                        </td>
+                                        <td class="py-1 text-center text-[11px] text-slate-400">U-Section</td>
+                                        <td id="valAreaConcrete" class="py-1 text-right font-semibold text-sky-400">0.000</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-1 flex items-center gap-1.5">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-sky-300 inline-block shrink-0"></span>
+                                            <span>คอนกรีตหยาบรองพื้น</span>
+                                        </td>
+                                        <td class="py-1 text-center text-[11px] text-slate-400">4-11</td>
+                                        <td id="valAreaSubbase" class="py-1 text-right font-semibold text-sky-300">0.000</td>
+                                    </tr>
+                                    <tr class="border-t-2 border-slate-700/80 bg-slate-800/40">
+                                        <td class="py-1 flex items-center gap-1.5 text-pink-300 font-medium">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-pink-400 inline-block shrink-0"></span>
+                                            <span>ความกว้างขุดลอกหน้าดิน</span>
+                                        </td>
+                                        <td class="py-1 text-center text-[11px] text-slate-400">6-9</td>
+                                        <td id="valWidth69" class="py-1 text-right font-bold text-pink-300">0.00 m</td>
+                                    </tr>
+                                    <tr class="bg-slate-800/40">
+                                        <td class="py-1 flex items-center gap-1.5 text-rose-300 font-medium">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block shrink-0"></span>
+                                            <span>ความกว้างคันดินด้านล่าง</span>
+                                        </td>
+                                        <td class="py-1 text-center text-[11px] text-slate-400">1-14</td>
+                                        <td id="valWidth114" class="py-1 text-right font-bold text-rose-300">0.00 m</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Quick Preset Buttons -->
+                    <div class="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1.5">
+                        <p id="refElevInfo" class="hidden"></p>
+                        <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider">เลือกกรณีทดสอบ:</label>
+                        <div class="grid grid-cols-3 gap-1.5">
+                            <button type="button" id="btnPresetCase1" onclick="setPresetCase(1)" class="ew-soft-btn ew-soft-slate justify-center">กรณีที่ 1 (ขุดลึก)</button>
+                            <button type="button" id="btnPresetCase2" onclick="setPresetCase(2)" class="ew-soft-btn ew-soft-cyan justify-center">กรณีที่ 2 (ถมสูง)</button>
+                            <button type="button" id="btnPresetCase3" onclick="setPresetCase(3)" class="ew-soft-btn ew-soft-slate justify-center">กรณีที่ 3 (กึ่งกลาง)</button>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- 1B. Left Control Panel (Collapsed Thin Strip State) -->
+                <div id="leftSidebarCollapsedStrip" class="hidden w-full lg:w-10 shrink-0 bg-slate-900/95 hover:bg-slate-800/90 rounded-2xl border border-cyan-500/50 flex-col items-center justify-between py-3 px-1 cursor-pointer shadow-xl transition ew-part3-collapsed-strip" title="คลิกเพื่อขยายตารางแสดงค่าพื้นที่ออกมา">
+                    <button type="button" id="btnExpandLeftSidebar" class="ew-line-collapse-btn" title="ขยายแถบตารางแสดงค่าพื้นที่">
+                        <span>▶</span>
+                    </button>
+                    <div class="text-[11px] font-bold text-cyan-700 tracking-wider select-none" style="writing-mode: vertical-rl; text-orientation: mixed;">
+                        ตารางแสดงค่าพื้นที่ (คลิกขยาย)
+                    </div>
+                    <span class="text-[9px] font-mono text-emerald-700 bg-emerald-100 px-1 py-0.5 rounded border border-emerald-400">m²</span>
+                </div>
+
+                <!-- 2. Center Interactive 1:1 Cross-Section Canvas + Bottom Controls Bar -->
+                <div class="flex-1 flex flex-col justify-between gap-2 min-w-0">
+                    <div id="crossSectionViewport" class="w-full flex-1 ew-part3-canvas-viewport bg-white rounded-xl border border-slate-300 relative flex flex-col overflow-hidden shadow-sm">
+                        <div class="absolute top-2.5 left-2.5 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl px-3 py-1.5 pointer-events-none z-10 shadow-sm space-y-0.5 max-w-[95%]">
+                            <div class="flex flex-wrap items-center gap-2 text-xs">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+                                <span class="text-slate-400 font-medium">คลอง:</span>
+                                <strong id="mainCanalNameText" class="text-white font-bold">-</strong>
+                                <span class="text-slate-600">|</span>
+                                <span class="text-slate-400 font-medium">คู:</span>
+                                <strong id="mainSubCanalNameText" class="text-white font-bold">-</strong>
+                                <span class="text-slate-600">|</span>
+                                <span class="text-slate-400 font-medium">ตำแหน่ง:</span>
+                                <strong id="mainStationText" class="text-cyan-300 font-mono font-bold">-</strong>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-300">
+                                <span id="dimSummaryBadge" class="text-cyan-300 font-medium">BL.=+100.00m | B=0.35m, H=0.50m, tw=0.10m, tb=0.10m, ts=0.05m, TBL=0.50m, TBR=0.50m</span>
+                                <span class="text-slate-600">|</span>
+                                <span class="text-slate-400">อัตราส่วน 1:1</span>
+                                <span class="text-slate-600">|</span>
+                                <span class="text-slate-400">ลากเพื่อย้าย (Pan) / สกรอลเพื่อย่อ-ขยาย (Zoom)</span>
+                            </div>
+                        </div>
+
+                        <canvas id="ewCrossSectionCanvas" class="w-full h-full cursor-grab active:cursor-grabbing flex-1 block"></canvas>
+                    </div>
+
+                    <!-- Bottom Display & Area Color Controls Bar -->
+                    <div class="shrink-0 bg-slate-900/95 px-2 py-1.5 rounded-xl border border-slate-700/80 flex items-center justify-between gap-1 flex-nowrap overflow-x-auto custom-scrollbar text-xs shadow-lg">
+                        <div class="hidden" aria-hidden="true">
+                            <input type="checkbox" id="chkAreaStripping" checked>
+                            <input type="checkbox" id="chkAreaCompacted" checked>
+                            <input type="checkbox" id="chkAreaExcavation" checked>
+                            <input type="checkbox" id="chkAreaManualFill" checked>
+                        </div>
+
+                        <button type="button" id="btnToggleAreaStripping" class="ew-soft-btn ew-soft-amber flex-1 min-w-0 justify-center truncate">
+                            <span id="dotAreaStripping" class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+                            <span id="lblAreaStripping" class="truncate">แสดงขุดลอกหน้าดิน</span>
+                        </button>
+                        <button type="button" id="btnToggleAreaCompacted" class="ew-soft-btn ew-soft-teal flex-1 min-w-0 justify-center truncate">
+                            <span id="dotAreaCompacted" class="w-2 h-2 rounded-full bg-teal-400 shrink-0"></span>
+                            <span id="lblAreaCompacted" class="truncate">แสดงดินถมบดอัดแน่น 85%</span>
+                        </button>
+                        <button type="button" id="btnToggleAreaExcavation" class="ew-soft-btn ew-soft-orange flex-1 min-w-0 justify-center truncate">
+                            <span id="dotAreaExcavation" class="w-2 h-2 rounded-full bg-orange-400 shrink-0"></span>
+                            <span id="lblAreaExcavation" class="truncate">แสดงดินขุด</span>
+                        </button>
+                        <button type="button" id="btnToggleAreaManualFill" class="ew-soft-btn ew-soft-purple flex-1 min-w-0 justify-center truncate">
+                            <span id="dotAreaManualFill" class="w-2 h-2 rounded-full bg-purple-400 shrink-0"></span>
+                            <span id="lblAreaManualFill" class="truncate">แสดงดินถมด้วยแรงคน</span>
+                        </button>
+                        <button type="button" id="toggleDimsBtn" class="ew-soft-btn ew-soft-cyan flex-1 min-w-0 justify-center truncate">
+                            <span id="dotDims" class="w-2 h-2 rounded-full bg-cyan-400 shrink-0"></span>
+                            <span id="lblDims" class="truncate">แสดงมิติโครงสร้าง</span>
+                        </button>
+                        <button type="button" id="toggleWidthsBtn" class="ew-soft-btn ew-soft-pink flex-1 min-w-0 justify-center truncate">
+                            <span id="dotWidths" class="w-2 h-2 rounded-full bg-pink-400 shrink-0"></span>
+                            <span id="lblWidths" class="truncate">แสดงความกว้างขุดลอก/คันดิน</span>
+                        </button>
+
+                        <button type="button" id="resetViewBtn" class="ew-soft-btn ew-soft-slate shrink-0 px-2 py-1" title="รีเซ็ตมุมมองรูปตัดและแสดงค่าทั้งหมดของทุกปุ่ม">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. Vertical NGL Slider Tab (รอบ 63 ตามรูปที่ 3 ข้อ 2: แสดงท่อสไลเดอร์แนวดิ่งและขีดระดับชัดเจน) -->
+                <div class="ew-ngl-vertical-panel">
+                    <div class="ew-ngl-panel-header">
+                        <label for="nglInput" class="ew-ngl-panel-title">ระดับดินเดิม (NGL)</label>
+                        <span id="nglVal" class="ew-ngl-val-badge">+99.66 m</span>
+                    </div>
+
+                    <div class="ew-ngl-pipe-wrapper">
+                        <div class="ew-ngl-bound-top">
+                            <span id="nglMaxBoundLbl">+103.00</span>
+                        </div>
+
+                        <div id="nglSliderTrackContainer" class="ew-ngl-track-container">
+                            <input type="range" id="nglSlider" min="97.00" max="103.00" step="0.01" value="99.66" class="sr-only" tabindex="-1" aria-label="ระดับดินเดิม NGL">
+                            <div id="nglVisualTrack" class="ew-ngl-visual-track">
+                                <div id="nglVisualFill" class="ew-ngl-visual-fill" style="height: 44.33%;"></div>
+                            </div>
+                            <div class="ew-ngl-center-tick"></div>
+                            <button type="button" id="btnSnapNglToBl" class="ew-soft-btn ew-soft-sky ew-ngl-snap-bl-btn" title="จุดกึ่งกลาง = ระดับท้องคู (BL.) • คลิกเพื่อตั้ง NGL = BL.">
+                                <span id="nglCenterBlLbl">BL.+100.00</span>
+                            </button>
+                            <div id="nglVisualThumb" class="ew-ngl-visual-thumb" style="top: 55.67%;"></div>
+                        </div>
+
+                        <div class="ew-ngl-bound-bottom">
+                            <span id="nglMinBoundLbl">+97.00</span>
+                        </div>
+                    </div>
+
+                    <div class="ew-ngl-panel-footer">
+                        <input type="number" id="nglInput" min="97.00" max="103.00" step="0.01" value="99.66" class="no-spinner ew-ngl-number-input" title="พิมพ์ค่าระดับดินเดิม NGL โดยตรง (ไม่เกิน BL. ± 3.00 ม.)">
+                        <span class="ew-ngl-unit-lbl">เมตร (ม.รทก.)</span>
+                    </div>
+                </div>
+
+                <!-- 4A. Right Control Panel (รอบ 64 ตามรูปที่ 1 ข้อ 2-3: ช่องกรอกเป็นอีกแถวตามด้วย เมตร และลดความลึกให้แสดงเต็ม 1 หน้า) -->
+                <aside id="rightSidebarExpanded" class="ew-part3-right-sidebar">
+                    <div class="ew-part3-right-header">
+                        <div class="flex items-center gap-1">
+                            <button type="button" id="btnCollapseRightSidebar" class="ew-line-collapse-btn" title="ย่อแถบขนาดโครงสร้างเข้าด้านข้างให้เหลือเป็นแถบเล็ก">
+                                <span>▶</span>
+                            </button>
+                            <label class="text-[11px] font-bold text-cyan-700 leading-tight">ขนาดโครงสร้าง:</label>
+                        </div>
+                    </div>
+
+                    <div class="ew-part3-param-list">
+                        <div class="ew-part3-param-bl-box">
+                            <label for="inputInvert" class="ew-part3-param-label text-sky-700 font-bold">ระดับท้องคู (BL.)</label>
+                            <div class="ew-part3-param-input-row">
+                                <input type="number" id="inputInvert" step="0.01" value="100.00" class="no-spinner ew-part3-param-input font-bold text-sky-700">
+                                <span class="ew-part3-param-unit">เมตร</span>
+                            </div>
+                        </div>
+
+                        <div class="ew-part3-param-item">
+                            <label for="inputB" class="ew-part3-param-label">ความกว้างก้นคลอง (B)</label>
+                            <div class="ew-part3-param-input-row">
+                                <input type="number" id="inputB" min="0.10" max="10.00" step="0.05" value="0.35" class="no-spinner ew-part3-param-input">
+                                <span class="ew-part3-param-unit">เมตร</span>
+                            </div>
+                        </div>
+                        <div class="ew-part3-param-item">
+                            <label for="inputH" class="ew-part3-param-label">ความลึกคลอง (H)</label>
+                            <div class="ew-part3-param-input-row">
+                                <input type="number" id="inputH" min="0.10" max="10.00" step="0.05" value="0.50" class="no-spinner ew-part3-param-input">
+                                <span class="ew-part3-param-unit">เมตร</span>
+                            </div>
+                        </div>
+                        <div class="ew-part3-param-item">
+                            <label for="inputTBL" class="ew-part3-param-label">คันคลองฝั่งซ้าย (TBL)</label>
+                            <div class="ew-part3-param-input-row">
+                                <input type="number" id="inputTBL" min="0.10" max="10.00" step="0.05" value="0.50" class="no-spinner ew-part3-param-input">
+                                <span class="ew-part3-param-unit">เมตร</span>
+                            </div>
+                        </div>
+                        <div class="ew-part3-param-item">
+                            <label for="inputTBR" class="ew-part3-param-label">คันคลองฝั่งขวา (TBR)</label>
+                            <div class="ew-part3-param-input-row">
+                                <input type="number" id="inputTBR" min="0.10" max="10.00" step="0.05" value="0.50" class="no-spinner ew-part3-param-input">
+                                <span class="ew-part3-param-unit">เมตร</span>
+                            </div>
+                        </div>
+                        <div class="ew-part3-param-item">
+                            <label for="inputWallT" class="ew-part3-param-label">ความหนากำแพง (tw)</label>
+                            <div class="ew-part3-param-input-row">
+                                <input type="number" id="inputWallT" min="0.05" max="2.00" step="0.05" value="0.10" class="no-spinner ew-part3-param-input">
+                                <span class="ew-part3-param-unit">เมตร</span>
+                            </div>
+                        </div>
+                        <div class="ew-part3-param-item">
+                            <label for="inputBaseT" class="ew-part3-param-label">ความหนาพื้น (tb)</label>
+                            <div class="ew-part3-param-input-row">
+                                <input type="number" id="inputBaseT" min="0.05" max="2.00" step="0.05" value="0.10" class="no-spinner ew-part3-param-input">
+                                <span class="ew-part3-param-unit">เมตร</span>
+                            </div>
+                        </div>
+                        <div class="ew-part3-param-item">
+                            <label for="inputSubbaseT" class="ew-part3-param-label">ความหนาคอนกรีตหยาบ (ts)</label>
+                            <div class="ew-part3-param-input-row">
+                                <input type="number" id="inputSubbaseT" min="0.00" max="1.00" step="0.01" value="0.05" class="no-spinner ew-part3-param-input">
+                                <span class="ew-part3-param-unit">เมตร</span>
+                            </div>
+                        </div>
+                        <div class="ew-part3-param-item">
+                            <label for="inputTopsoil" class="ew-part3-param-label">ความหนาขุดลอกหน้าดิน (dt)</label>
+                            <div class="ew-part3-param-input-row">
+                                <input type="number" id="inputTopsoil" min="0.00" max="2.00" step="0.05" value="0.30" class="no-spinner ew-part3-param-input">
+                                <span class="ew-part3-param-unit">เมตร</span>
+                            </div>
+                        </div>
+                        <button id="btnApplyParamsToAllBoq" class="hidden"></button>
+                    </div>
+
+                    <div class="ew-part3-right-footer">
+                        <button type="button" id="resetParamsBtn" class="ew-soft-btn ew-soft-slate w-full justify-center py-1 text-[11px]">ค่าเริ่มต้น</button>
+                    </div>
+                </aside>
+
+                <!-- 4B. Right Control Panel (Collapsed Thin Strip State) -->
+                <div id="rightSidebarCollapsedStrip" class="hidden w-full lg:w-10 shrink-0 bg-slate-900/95 hover:bg-slate-800/90 rounded-2xl border border-cyan-500/50 flex-col items-center justify-between py-3 px-1 cursor-pointer shadow-xl transition ew-part3-collapsed-strip" title="คลิกเพื่อขยายแถบขนาดโครงสร้างและงานดินออกมา">
+                    <button type="button" id="btnExpandRightSidebar" class="ew-line-collapse-btn">
+                        <span>◀</span>
+                    </button>
+                    <div class="text-[11px] font-bold text-cyan-300 tracking-wider select-none" style="writing-mode: vertical-rl; text-orientation: mixed;">
+                        ขนาดโครงสร้างและงานดิน (คลิกขยาย)
+                    </div>
+                    <span class="text-[9px] font-mono text-sky-300 bg-sky-950 px-1 py-0.5 rounded border border-sky-700/60">BL</span>
+                </div>
+            </div>
+        </section>
+
+          </div>
+
+          <!-- รอบ 69 (Version 1.0013): แท็บ "งานอาคารประกอบ" ภายใต้เมนูส่วนคำนวณปริมาณ (แยกโค้ดอยู่ใน js/tab-qty-structure.js) -->
+          <div class="quantity-calc-earthwork-scroll custom-scrollbar hidden" id="quantityCalcStructureContainer" style="display: none;">
+
+            <!-- ส่วนที่ 1: สรุปเป็นแต่ละอาคาร (จัดกลุ่ม คูส่งน้ำ + Type คูส่งน้ำ + ขนาด ที่เหมือนกันอยู่ด้วยกัน) -->
+            <section id="sectionQtyStructureByDitch" class="w-full bg-white rounded-2xl border border-slate-300 p-3.5 sm:p-5 space-y-3 shadow-sm ew-part-section">
+              <div class="ew-section-header-wrap">
+                <div class="ew-section-header-top">
+                  <div class="ew-section-header-title-group">
+                    <button type="button" id="btnToggleQtyStructSec1" class="ew-line-collapse-btn" onclick="toggleQtyStructSectionCollapse('qtyStructSec1Body', 'btnToggleQtyStructSec1')" title="ย่อ/ขยายส่วนที่ 1">-</button>
+                    <span class="ew-badge ew-badge-emerald">ส่วนที่ 1</span>
+                    <h2 class="ew-section-main-heading">
+                      สรุปปริมาณงานอาคารประกอบแยกตามแต่ละอาคาร (จัดกลุ่ม คูส่งน้ำ • Type คูส่งน้ำ • ขนาด ที่เหมือนกันอยู่ด้วยกัน)
+                    </h2>
+                    <div class="ml-auto flex items-center gap-1.5 flex-wrap">
+                      <span class="ew-badge ew-badge-cyan" id="qtyStructStatBuildingTypes">0 ประเภทอาคาร</span>
+                      <span class="ew-badge ew-badge-indigo" id="qtyStructStatUniqueSpecs">0 รูปแบบ (Type+ขนาด)</span>
+                      <span class="ew-badge ew-badge-emerald" id="qtyStructStatTotalCount">0 แห่ง</span>
+                    </div>
+                  </div>
+                  <p class="ew-section-sub-desc">
+                    ดึงข้อมูลจากส่วนถอดแบบอัตโนมัติ โดยรวมรายการที่มี <strong>ประเภทอาคาร + คูส่งน้ำ + Type คูส่งน้ำ (UP/DOWN) + ขนาด (H, ศก.ท่อ, ความยาว)</strong> เหมือนกันให้อยู่ด้วยกัน พร้อมระบุตำแหน่ง กม. และจำนวนรวม (แห่ง)
+                  </p>
+                </div>
+
+                <!-- แถบตัวกรองและปุ่มคำสั่ง -->
+                <div class="ew-header-toolbar-row" id="qtyStructureActionsRow">
+                  <div class="ew-toolbar-group flex-wrap">
+                    <label for="selectQtyStructCanalFilter" class="text-xs font-bold text-slate-700 whitespace-nowrap">🌊 สายคูส่งน้ำ:</label>
+                    <select id="selectQtyStructCanalFilter" onchange="onQtyStructureFilterChange()" class="ew-canal-filter-select">
+                      <option value="ALL">แสดงทั้งหมดทุกสาย</option>
+                    </select>
+
+                    <label for="selectQtyStructBuildingFilter" class="text-xs font-bold text-slate-700 whitespace-nowrap ml-1">🏗️ อาคาร:</label>
+                    <select id="selectQtyStructBuildingFilter" onchange="onQtyStructureFilterChange()" class="ew-canal-filter-select">
+                      <option value="ALL">แสดงทุกประเภทอาคาร</option>
+                    </select>
+
+                    <label for="selectQtyStructDitchTypeFilter" class="text-xs font-bold text-slate-700 whitespace-nowrap ml-1">🧱 Type คูส่งน้ำ:</label>
+                    <select id="selectQtyStructDitchTypeFilter" onchange="onQtyStructureFilterChange()" class="ew-canal-filter-select" style="max-width: 165px;">
+                      <option value="ALL">แสดงทุก Type</option>
+                    </select>
+
+                    <label for="selectQtyStructSourceFilter" class="text-xs font-bold text-slate-700 whitespace-nowrap ml-1">📂 แหล่งข้อมูล:</label>
+                    <select id="selectQtyStructSourceFilter" onchange="onQtyStructureFilterChange()" class="ew-canal-filter-select" style="max-width: 185px;">
+                      <option value="ALL">รวมทั้งหมด (อาคารประกอบ + ท่อรับน้ำ)</option>
+                      <option value="structure">เฉพาะแท็บอาคารประกอบ</option>
+                      <option value="attachment">เฉพาะแท็บท่อรับน้ำเข้าแปลงไร่นา</option>
+                    </select>
+                  </div>
+
+                  <div class="ew-toolbar-group">
+                    <button type="button" id="btnPullQtyStructFromTakeoff" onclick="syncQtyStructureFromTakeoff(true)" class="ew-soft-btn ew-soft-indigo" title="ดึงข้อมูลอาคารประกอบและมิติ/ระดับคูส่งน้ำจากส่วนถอดแบบมาสรุปใหม่">
+                      <span>🔄 ดึงค่าจากส่วนถอดแบบ</span>
+                    </button>
+                    <button type="button" id="btnResetQtyStructFilters" onclick="resetQtyStructureFilters()" class="ew-soft-btn ew-soft-slate" title="ล้างตัวกรองทั้งหมด">
+                      <span>↺ แสดงทั้งหมด</span>
+                    </button>
+                    <button type="button" id="btnExpandAllQtyStruct" onclick="expandOrCollapseAllQtyStructureGroups(false)" class="ew-soft-btn ew-soft-cyan" title="ขยายกลุ่มอาคารทั้งหมด">
+                      <span>+ ขยายทุกกลุ่ม</span>
+                    </button>
+                    <button type="button" id="btnCollapseAllQtyStruct" onclick="expandOrCollapseAllQtyStructureGroups(true)" class="ew-soft-btn ew-soft-slate" title="ย่อกลุ่มอาคารทั้งหมด">
+                      <span>- ย่อทุกกลุ่ม</span>
+                    </button>
+                    <button type="button" id="btnCopyQtyStructByDitch" onclick="copyQtyStructureSummaryTableData('byDitch')" class="ew-soft-btn ew-soft-emerald" title="คัดลอกตารางสรุปงานอาคารประกอบ (ส่วนที่ 1) ลงคลิปบอร์ด">
+                      <span>📋 Copy ตาราง</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div id="qtyStructSec1Body" class="space-y-3">
+                <div class="overflow-x-auto rounded-xl border border-slate-300 shadow-sm custom-scrollbar" id="qtyStructByDitchTableContainer">
+                  <table class="w-full text-left border-collapse text-xs" id="qtyStructByDitchTable">
+                    <thead class="bg-slate-100 text-slate-800 border-b border-slate-300 text-[11px] uppercase">
+                      <tr>
+                        <th class="px-2 py-2 text-center w-10">#</th>
+                        <th class="px-2.5 py-2 text-left">ประเภทอาคาร</th>
+                        <th class="px-2.5 py-2 text-left">รายการอาคาร (รวมขนาด)</th>
+                        <th class="px-2 py-2 text-center">คลองส่งน้ำ</th>
+                        <th class="px-2 py-2 text-center">คูส่งน้ำ</th>
+                        <th class="px-2 py-2 text-center">Type คูส่งน้ำ (B×H)</th>
+                        <th class="px-2 py-2 text-center">UP / DOWN</th>
+                        <th class="px-2 py-2 text-center">H (ม.)</th>
+                        <th class="px-2 py-2 text-center">ศก. ท่อ (ม.)</th>
+                        <th class="px-2 py-2 text-center">ความยาว (ม.)</th>
+                        <th class="px-2.5 py-2 text-left">กม. ที่ตั้ง (ในคูเดียวกัน)</th>
+                        <th class="px-2.5 py-2 text-center">จำนวนรวม (แห่ง)</th>
+                      </tr>
+                    </thead>
+                    <tbody id="qtyStructByDitchTableBody" class="divide-y divide-slate-200 bg-white"></tbody>
+                    <tfoot id="qtyStructByDitchTableFoot"></tfoot>
+                  </table>
+                </div>
+              </div>
+            </section>
+
+            <!-- เส้นแบ่งส่วนระหว่าง ส่วนที่ 1 และ ส่วนที่ 2 ของแท็บงานอาคารประกอบ -->
+            <div class="ew-section-divider" id="qtyStructDivider1To2">
+              <div class="ew-section-divider-line"></div>
+              <span class="ew-section-divider-badge">ส่วนที่ 2 • สรุปรวมทั้งโครงการ (รวมทุกคูส่งน้ำที่มี อาคาร + Type + ขนาด เหมือนกันอยู่ด้วยกัน)</span>
+              <div class="ew-section-divider-line"></div>
+            </div>
+
+            <!-- ส่วนที่ 2: ตารางสรุปรวมทุกคูส่งน้ำที่มี อาคาร + Type คูส่งน้ำ + ขนาด เหมือนกัน -->
+            <section id="sectionQtyStructureByTypeSize" class="w-full bg-white rounded-2xl border border-slate-300 p-3.5 sm:p-5 space-y-3 shadow-sm ew-part-section">
+              <div class="ew-section-header-wrap">
+                <div class="ew-section-header-top">
+                  <div class="ew-section-header-title-group">
+                    <button type="button" id="btnToggleQtyStructSec2" class="ew-line-collapse-btn" onclick="toggleQtyStructSectionCollapse('qtyStructSec2Body', 'btnToggleQtyStructSec2')" title="ย่อ/ขยายส่วนที่ 2">-</button>
+                    <span class="ew-badge ew-badge-cyan">ส่วนที่ 2</span>
+                    <h2 class="ew-section-main-heading">
+                      ตารางสรุปรวมยอดทั้งโครงการ แยกตามแต่ละอาคาร • Type คูส่งน้ำ • ขนาด ที่เหมือนกัน
+                    </h2>
+                    <div class="ml-auto">
+                      <button type="button" id="btnCopyQtyStructAcross" onclick="copyQtyStructureSummaryTableData('acrossDitches')" class="ew-soft-btn ew-soft-cyan" title="คัดลอกตารางสรุปรวมทั้งโครงการ (ส่วนที่ 2) ลงคลิปบอร์ด">
+                        <span>📋 Copy ตารางสรุปรวม</span>
+                      </button>
+                    </div>
+                  </div>
+                  <p class="ew-section-sub-desc">
+                    รวมทุกคูส่งน้ำที่มี <strong>ประเภทอาคาร + Type คูส่งน้ำ + ขนาด (H, ศก.ท่อ, ความยาว)</strong> เหมือนกันเข้าเป็นบรรทัดเดียว พร้อมแสดงรายชื่อคูส่งน้ำและยอดรวมทั้งหมดสำหรับนำไปถอดปริมาณงาน (BoQ)
+                  </p>
+                </div>
+              </div>
+
+              <div id="qtyStructSec2Body" class="space-y-3">
+                <div class="overflow-x-auto rounded-xl border border-slate-300 shadow-sm custom-scrollbar" id="qtyStructAcrossDitchesTableContainer">
+                  <table class="w-full text-left border-collapse text-xs" id="qtyStructAcrossDitchesTable">
+                    <thead class="bg-slate-100 text-slate-800 border-b border-slate-300 text-[11px] uppercase">
+                      <tr>
+                        <th class="px-2 py-2 text-center w-10">#</th>
+                        <th class="px-2.5 py-2 text-left">ประเภทอาคาร</th>
+                        <th class="px-2.5 py-2 text-left">รายการอาคาร (รวมขนาด)</th>
+                        <th class="px-2 py-2 text-center">Type คูส่งน้ำ (B×H)</th>
+                        <th class="px-2 py-2 text-center">UP / DOWN</th>
+                        <th class="px-2 py-2 text-center">H (ม.)</th>
+                        <th class="px-2 py-2 text-center">ศก. ท่อ (ม.)</th>
+                        <th class="px-2 py-2 text-center">ความยาว (ม.)</th>
+                        <th class="px-2.5 py-2 text-left">คูส่งน้ำที่มีรายการนี้ (จำนวนแห่ง)</th>
+                        <th class="px-2.5 py-2 text-center">รวมทั้งสิ้น (แห่ง)</th>
+                      </tr>
+                    </thead>
+                    <tbody id="qtyStructAcrossDitchesTableBody" class="divide-y divide-slate-200 bg-white"></tbody>
+                    <tfoot id="qtyStructAcrossDitchesTableFoot"></tfoot>
+                  </table>
+                </div>
+              </div>
+            </section>
 
           </div>
         </div>
@@ -1549,37 +2050,38 @@
 
 
   <!-- โหลดสคริปต์เรียงตามลำดับความสัมพันธ์ -->
-  <!-- รอบ 30: ใส่ ?v=20261104b เพื่อกันเบราว์เซอร์ใช้ไฟล์ JS เก่าจาก cache
+  <!-- รอบ 30: ใส่ ?v=20261105e เพื่อกันเบราว์เซอร์ใช้ไฟล์ JS เก่าจาก cache
        (แก้โค้ดแล้วหน้าเว็บไม่เปลี่ยน) — ต้องเพิ่มเลข APP_BUILD ทุกครั้งที่แก้ไฟล์ JS -->
-  <script src="js/state.js?v=20261104b"></script>
+  <script src="js/state.js?v=20261105e"></script>
   <!-- ส่วนตาราง: แยกตามแท็บ (เดิมรวมอยู่ใน js/table-render.js ไฟล์เดียว) -->
   <!-- tab-project.js ต้องโหลดก่อน table-core.js เพราะ renderEstimateSummaryTab ใช้ updateProjectPlanField -->
-  <script src="js/tab-project.js?v=20261104b"></script>
-  <script src="js/table-core.js?v=20261104b"></script>
-  <script src="js/table-sync.js?v=20261104b"></script>
-  <script src="js/tab-ditch.js?v=20261104b"></script>
-  <script src="js/tab-dimension.js?v=20261104b"></script>
-  <script src="js/tab-level.js?v=20261104b"></script>
-  <script src="js/tab-ground.js?v=20261104b"></script>
-  <script src="js/tab-structure.js?v=20261104b"></script>
-  <script src="js/tab-attachment.js?v=20261104b"></script>
-  <script src="js/tab-type.js?v=20261104b"></script>
+  <script src="js/tab-project.js?v=20261105e"></script>
+  <script src="js/table-core.js?v=20261105e"></script>
+  <script src="js/table-sync.js?v=20261105e"></script>
+  <script src="js/tab-ditch.js?v=20261105e"></script>
+  <script src="js/tab-dimension.js?v=20261105e"></script>
+  <script src="js/tab-level.js?v=20261105e"></script>
+  <script src="js/tab-ground.js?v=20261105e"></script>
+  <script src="js/tab-structure.js?v=20261105e"></script>
+  <script src="js/tab-attachment.js?v=20261105e"></script>
+  <script src="js/tab-type.js?v=20261105e"></script>
   <!-- แท็บย่อยภายใต้เมนูส่วนคำนวณปริมาณ: แยก 1 แท็บ = 1 ไฟล์ -->
-  <script src="js/tab-earthwork.js?v=20261104b"></script>
-  <script src="js/tab-ai-result.js?v=20261104b"></script>
+  <script src="js/tab-earthwork.js?v=20261105e"></script>
+  <script src="js/tab-qty-structure.js?v=20261105e"></script>
+  <script src="js/tab-ai-result.js?v=20261105e"></script>
   <!-- รอบ 41: tab-validate.js ต้องโหลดหลังทุกแท็บ (ใช้ข้อมูลจากทุกแท็บในการตรวจสอบ) -->
-  <script src="js/tab-validate.js?v=20261104b"></script>
-  <script src="js/io-manager.js?v=20261104b"></script>
+  <script src="js/tab-validate.js?v=20261105e"></script>
+  <script src="js/io-manager.js?v=20261105e"></script>
   <!-- รอบ 42: หน้าต่าง "ตรวจสอบข้อมูลก่อนส่งออก" (ต้องโหลดหลัง io-manager.js เพราะใช้ buildExportSheetsData) -->
-  <script src="js/tab-export-preview.js?v=20261104b"></script>
+  <script src="js/tab-export-preview.js?v=20261105e"></script>
   <!-- รอบ 42: ระบบเครดิต AI + คิวงานอ่านรูปที่ค้างไว้ -->
-  <script src="js/ai-credit.js?v=20261104b"></script>
+  <script src="js/ai-credit.js?v=20261105e"></script>
   <!-- canvas-viewer.js โหลดทีหลัง เพราะมันเรียก returnToTakeoff/showEstimateSummary ที่อยู่ใน table-core.js -->
-  <script src="js/canvas-viewer.js?v=20261104b"></script>
+  <script src="js/canvas-viewer.js?v=20261105e"></script>
   <!-- รอบ 30: ai-reader.js ต้องโหลดหลัง canvas-viewer.js เพราะใช้ aiCurrentSettings/imgScale -->
-  <script src="js/ai-reader.js?v=20261104b"></script>
+  <script src="js/ai-reader.js?v=20261105e"></script>
   <!-- รอบ 36: autosave.js ต้องโหลดหลังทุกไฟล์ เพราะใช้ buildProjectBackup() / loadProjectDataObject() -->
-  <script src="js/autosave.js?v=20261104b"></script>
+  <script src="js/autosave.js?v=20261105e"></script>
   <script>
     // เริ่มต้นระบบเมื่อทุกไฟล์โหลดเสร็จ
     syncSettingsSubTabUI();

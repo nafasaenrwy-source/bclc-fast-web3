@@ -143,7 +143,7 @@ const files = [
   'js/tab-structure.js',
   'js/tab-attachment.js',
   'js/tab-type.js',
-  'js/tab-earthwork.js',
+  'js/tab-earthwork.js', 'js/tab-qty-structure.js',
   'js/io-manager.js',
   'js/tab-export-preview.js',
   'js/ai-credit.js'

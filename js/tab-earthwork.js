@@ -7,6 +7,287 @@
 // ============================================================================
 var quantityCalcActiveTab = 'earthwork';
 var quantityCalcSidebarCollapsed = false;
+
+var collapsedEarthworkCanalLines = new Set();
+var selectedEarthworkCanalFilter = 'ALL';
+
+function toggleEarthworkCanalLineCollapse(lineKey) {
+  if (!lineKey) return;
+  if (collapsedEarthworkCanalLines.has(lineKey)) {
+    collapsedEarthworkCanalLines.delete(lineKey);
+  } else {
+    collapsedEarthworkCanalLines.add(lineKey);
+  }
+  renderBoqTable();
+}
+
+function onEarthworkCanalLineFilterChange(val) {
+  selectedEarthworkCanalFilter = val || 'ALL';
+  const sel1 = document.getElementById('selectEarthworkCanalLineFilter');
+  if (sel1 && sel1.value !== selectedEarthworkCanalFilter) sel1.value = selectedEarthworkCanalFilter;
+  const sel2 = document.getElementById('selectPart2CanalLine');
+  if (sel2 && sel2.value !== selectedEarthworkCanalFilter) sel2.value = selectedEarthworkCanalFilter;
+  if (selectedEarthworkCanalFilter !== 'ALL') {
+    const firstIdx = boqRows.findIndex(r => makeCanalLineKey(r.canalName, r.subCanalName) === selectedEarthworkCanalFilter);
+    if (firstIdx !== -1) {
+      selectedRowIndex = firstIdx;
+    }
+  }
+  renderBoqTable();
+  resizeComparisonCanvases(true);
+  updateComparisonView(true);
+  drawLongitudinalProfile();
+}
+
+function onPart2CanalLineSelectChange(val) {
+  onEarthworkCanalLineFilterChange(val);
+}
+
+function updateEarthworkCanalLineFilterDropdownUI(lineSummaryByKey) {
+  const sel = document.getElementById('selectEarthworkCanalLineFilter');
+  const selPart2 = document.getElementById('selectPart2CanalLine');
+  if (!sel && !selPart2) return;
+  const summaryMap = lineSummaryByKey instanceof Map ? lineSummaryByKey : new Map();
+  if (selectedEarthworkCanalFilter !== 'ALL' && !summaryMap.has(selectedEarthworkCanalFilter)) {
+    selectedEarthworkCanalFilter = 'ALL';
+  }
+  let optsHtml = `<option value="ALL" ${selectedEarthworkCanalFilter === 'ALL' ? 'selected' : ''}>แสดงทั้งหมดทุกสาย (${summaryMap.size} สาย • ${boqRows.length} แถว)</option>`;
+  let idx = 0;
+  summaryMap.forEach((info, lKey) => {
+    idx++;
+    const safeVal = String(lKey).replace(/"/g, '&quot;');
+    const isSel = selectedEarthworkCanalFilter === lKey ? 'selected' : '';
+    optsHtml += `<option value="${safeVal}" ${isSel}>${idx}: คลอง ${info.canalName} • คู ${info.subCanalName} (${info.rowCount} แถว)</option>`;
+  });
+  if (sel) {
+    sel.innerHTML = optsHtml;
+    sel.value = selectedEarthworkCanalFilter;
+  }
+  if (selPart2) {
+    selPart2.innerHTML = optsHtml;
+    selPart2.value = selectedEarthworkCanalFilter;
+  }
+}
+
+function toggleBoqSectionCollapse() {
+  const body = document.getElementById('boqSectionBody');
+  const btn = document.getElementById('btnToggleBoqCollapse');
+  if (!body) return;
+  const isNowHidden = body.classList.toggle('hidden');
+  if (btn) {
+    btn.textContent = isNowHidden ? '+' : '-';
+    btn.title = isNowHidden ? 'ขยายส่วนที่ 1' : 'ย่อส่วนที่ 1';
+  }
+}
+
+function toggleEarthworkPart2Collapse() {
+  const body = document.getElementById('earthworkPart2Body');
+  const activeBar = document.getElementById('ewPart2ActiveRowBar');
+  const btn = document.getElementById('btnTogglePart2Collapse');
+  if (!body) return;
+  const isNowHidden = body.classList.toggle('hidden');
+  if (activeBar && activeBar.classList) activeBar.classList.toggle('hidden', isNowHidden);
+  if (btn) {
+    btn.textContent = isNowHidden ? '+' : '-';
+    btn.title = isNowHidden ? 'ขยายส่วนที่ 2' : 'ย่อส่วนที่ 2';
+  }
+  if (!isNowHidden) {
+    setTimeout(() => {
+      if (typeof resizeComparisonCanvases === 'function') resizeComparisonCanvases(false);
+      if (typeof drawLongitudinalProfile === 'function') drawLongitudinalProfile();
+    }, 30);
+  }
+}
+
+function toggleCrossSectionPart3Collapse() {
+  const body = document.getElementById('crossSectionBody');
+  const btn = document.getElementById('btnToggleCrossSectionCollapse');
+  if (!body) return;
+  const isNowHidden = body.classList.toggle('hidden');
+  if (btn) {
+    btn.textContent = isNowHidden ? '+' : '-';
+    btn.title = isNowHidden ? 'ขยายส่วนที่ 3' : 'ย่อส่วนที่ 3';
+  }
+  if (!isNowHidden) {
+    setTimeout(() => {
+      if (typeof resizeCanvas === 'function') resizeCanvas();
+      if (typeof resetView === 'function') resetView();
+    }, 30);
+  }
+}
+
+function interpolateEarthworkAtStation(staM, rowBefore, rowAfter, lineKey) {
+  const sA = parseStationToMeters(rowBefore.staStart);
+  const sB = parseStationToMeters(rowAfter ? rowAfter.staEnd : rowBefore.staEnd);
+  const span = Math.max(1e-6, sB - sA);
+  const t = Math.max(0, Math.min(1, (staM - sA) / span));
+
+  const blA = Number(rowBefore.blStart);
+  const blB = Number(rowAfter ? rowAfter.blEnd : rowBefore.blEnd);
+  const blVal = roundElev(blA + t * (blB - blA));
+  const hVal = roundLen(rowBefore.H ?? 0.50);
+  const tblVal = roundElev(blVal + hVal);
+
+  let nglVal = '-';
+  const linePts = typeof getNglPointsForCanalLine === 'function' ? getNglPointsForCanalLine(lineKey) : [];
+  if (Array.isArray(linePts) && linePts.length >= 2) {
+    const sorted = [...linePts].sort((a, b) => Number(a.data.x) - Number(b.data.x));
+    if (staM <= Number(sorted[0].data.x)) {
+      nglVal = roundElev(sorted[0].data.y);
+    } else if (staM >= Number(sorted[sorted.length - 1].data.x)) {
+      nglVal = roundElev(sorted[sorted.length - 1].data.y);
+    } else {
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const x1 = Number(sorted[i].data.x), y1 = Number(sorted[i].data.y);
+        const x2 = Number(sorted[i + 1].data.x), y2 = Number(sorted[i + 1].data.y);
+        if (staM >= x1 - STATION_DUP_EPS && staM <= x2 + STATION_DUP_EPS) {
+          const r = Math.abs(x2 - x1) < 1e-6 ? 0 : (staM - x1) / (x2 - x1);
+          nglVal = roundElev(y1 + r * (y2 - y1));
+          break;
+        }
+      }
+    }
+  } else if (!isMissingNglValue(rowBefore.nglStart) && !isMissingNglValue(rowAfter ? rowAfter.nglEnd : rowBefore.nglEnd)) {
+    const nA = Number(rowBefore.nglStart);
+    const nB = Number(rowAfter ? rowAfter.nglEnd : rowBefore.nglEnd);
+    nglVal = roundElev(nA + t * (nB - nA));
+  }
+  return { ngl: nglVal, bl: blVal, tbl: tblVal };
+}
+
+function addEarthworkRowBelow(rIdx) {
+  const curRow = boqRows[rIdx];
+  if (!curRow) return;
+  const curLineKey = makeCanalLineKey(curRow.canalName, curRow.subCanalName);
+  const nextRow = boqRows[rIdx + 1];
+  const isLastRowOfCanalLine = (!nextRow || makeCanalLineKey(nextRow.canalName, nextRow.subCanalName) !== curLineKey);
+  if (isLastRowOfCanalLine) {
+    showToast('แถวสุดท้ายของสายคูส่งน้ำไม่สามารถเพิ่มแถวต่อท้ายได้', 'amber');
+    return;
+  }
+
+  pushUndoSnapshot(`เพิ่มแถวใต้แถวที่ ${rIdx + 1}`);
+
+  const sStart = roundStation(parseStationToMeters(curRow.staEnd));
+  const sNextEnd = roundStation(parseStationToMeters(nextRow.staEnd));
+  let sMid = roundStation((sStart + sNextEnd) * 0.5);
+  if (sMid <= sStart) sMid = sStart + 1;
+  if (sMid >= sNextEnd && sNextEnd > sStart + 1) sMid = sNextEnd - 1;
+
+  const interpMid = interpolateEarthworkAtStation(sMid, nextRow, nextRow, curLineKey);
+
+  const newRow = cloneBoqRowItem({
+    ...curRow,
+    isUserAdded: true,
+    staStart: sStart,
+    nglStart: curRow.nglEnd,
+    blStart: curRow.blEnd,
+    tblStart: curRow.tblEnd,
+    staEnd: sMid,
+    nglEnd: interpMid.ngl,
+    blEnd: interpMid.bl,
+    tblEnd: interpMid.tbl,
+    staStartTags: Array.isArray(curRow.staEndTags) ? [...curRow.staEndTags] : ['baseEnd'],
+    staEndTags: ['userAdded'],
+    remark: 'แถวเพิ่มเอง (แก้ไข กม.สิ้นสุด)'
+  });
+
+  nextRow.staStart = sMid;
+  nextRow.nglStart = interpMid.ngl;
+  nextRow.blStart = interpMid.bl;
+  nextRow.tblStart = interpMid.tbl;
+  nextRow.staStartTags = ['userAdded'];
+
+  boqRows.splice(rIdx + 1, 0, newRow);
+  masterBoqRows = cloneBoqRows(boqRows);
+  selectedRowIndex = rIdx + 1;
+  renderBoqTable();
+  updateComparisonView(true);
+  drawLongitudinalProfile();
+  if (typeof markWorkspaceDirty === 'function') markWorkspaceDirty();
+}
+
+function deleteEarthworkUserRow(rIdx) {
+  const targetRow = boqRows[rIdx];
+  if (!targetRow || !targetRow.isUserAdded) {
+    showToast('แถวที่ได้จากส่วนถอดแบบไม่สามารถลบได้', 'amber');
+    return;
+  }
+  pushUndoSnapshot(`ลบแถวที่เพิ่มเอง (แถวที่ ${rIdx + 1})`);
+
+  const curLineKey = makeCanalLineKey(targetRow.canalName, targetRow.subCanalName);
+  const prevRow = rIdx > 0 ? boqRows[rIdx - 1] : null;
+  const nextRow = boqRows[rIdx + 1];
+
+  if (nextRow && makeCanalLineKey(nextRow.canalName, nextRow.subCanalName) === curLineKey) {
+    if (prevRow && makeCanalLineKey(prevRow.canalName, prevRow.subCanalName) === curLineKey) {
+      nextRow.staStart = prevRow.staEnd;
+      nextRow.nglStart = prevRow.nglEnd;
+      nextRow.blStart = prevRow.blEnd;
+      nextRow.tblStart = prevRow.tblEnd;
+      nextRow.staStartTags = Array.isArray(prevRow.staEndTags) ? [...prevRow.staEndTags] : ['baseEnd'];
+    } else {
+      nextRow.staStart = targetRow.staStart;
+      nextRow.nglStart = targetRow.nglStart;
+      nextRow.blStart = targetRow.blStart;
+      nextRow.tblStart = targetRow.tblStart;
+      nextRow.staStartTags = Array.isArray(targetRow.staStartTags) ? [...targetRow.staStartTags] : ['baseStart'];
+    }
+  }
+
+  boqRows.splice(rIdx, 1);
+  masterBoqRows = cloneBoqRows(boqRows);
+  selectedRowIndex = Math.min(Math.max(0, rIdx), Math.max(0, boqRows.length - 1));
+  renderBoqTable();
+  updateComparisonView(true);
+  drawLongitudinalProfile();
+  if (typeof markWorkspaceDirty === 'function') markWorkspaceDirty();
+}
+
+function updateEarthworkUserRowStaEnd(rIdx, rawVal) {
+  const row = boqRows[rIdx];
+  if (!row || !row.isUserAdded) return;
+  const curLineKey = makeCanalLineKey(row.canalName, row.subCanalName);
+  const nextRow = boqRows[rIdx + 1];
+  const hasSameLineNext = nextRow && makeCanalLineKey(nextRow.canalName, nextRow.subCanalName) === curLineKey;
+
+  const newEndM = roundStation(parseStationToMeters(rawVal));
+  const minSta = roundStation(parseStationToMeters(row.staStart));
+  const maxSta = hasSameLineNext ? roundStation(parseStationToMeters(nextRow.staEnd)) : Infinity;
+
+  if (isNaN(newEndM) || newEndM <= minSta) {
+    showToast(`กม.สิ้นสุด ต้องมากกว่า กม.เริ่มต้น (${formatMetersToStation(minSta)})`, 'amber');
+    renderBoqTable();
+    return;
+  }
+  if (hasSameLineNext && newEndM >= maxSta) {
+    showToast(`กม.สิ้นสุด ต้องน้อยกว่า กม.สิ้นสุดของช่วงถัดไป (${formatMetersToStation(maxSta)})`, 'amber');
+    renderBoqTable();
+    return;
+  }
+
+  pushUndoSnapshot(`แก้ไข กม.สิ้นสุด แถวที่ ${rIdx + 1}`);
+
+  const interp = interpolateEarthworkAtStation(newEndM, row, hasSameLineNext ? nextRow : row, curLineKey);
+  row.staEnd = newEndM;
+  row.nglEnd = interp.ngl;
+  row.blEnd = interp.bl;
+  row.tblEnd = interp.tbl;
+
+  if (hasSameLineNext) {
+    nextRow.staStart = newEndM;
+    nextRow.nglStart = interp.ngl;
+    nextRow.blStart = interp.bl;
+    nextRow.tblStart = interp.tbl;
+  }
+
+  masterBoqRows = cloneBoqRows(boqRows);
+  renderBoqTable();
+  updateComparisonView(true);
+  drawLongitudinalProfile();
+  if (typeof markWorkspaceDirty === 'function') markWorkspaceDirty();
+}
+
 var earthworkHasSyncedInitial = false;
 var lastTakeoffSyncSignature = '';
 
@@ -25,6 +306,659 @@ var paramBaseT = 0.10;
 var paramSubbaseT = 0.05;
 var paramTopsoil = 0.30;
 var ngl = 99.66;
+
+var showDimsState = true;
+var showWidthsState = true;
+var cssWidth = 800;
+var cssHeight = 420;
+var dpr = 1;
+var mainView = { scale: 250, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0 };
+var NGL_MAX_OFFSET = 3.00;
+var lastCommittedInvert = 100.00;
+var _part3ModelEventsBound = false;
+
+function clampNglToBlBounds(val) {
+  const minBound = roundElev(paramInvert - NGL_MAX_OFFSET);
+  const maxBound = roundElev(paramInvert + NGL_MAX_OFFSET);
+  return roundElev(Math.max(minBound, Math.min(maxBound, Number(val))));
+}
+
+function updatePresetCaseButtonsHighlight() {
+  const elevSubbaseBot = roundElev(paramInvert - paramBaseT - paramSubbaseT);
+  const c1 = roundElev(elevSubbaseBot + 0.80);
+  const c2 = roundElev(elevSubbaseBot - 0.19);
+  const c3 = roundElev(elevSubbaseBot + 0.35);
+  const pairs = [
+    { id: 'btnPresetCase1', target: c1 },
+    { id: 'btnPresetCase2', target: c2 },
+    { id: 'btnPresetCase3', target: c3 }
+  ];
+  pairs.forEach(p => {
+    const btn = document.getElementById(p.id);
+    if (!btn) return;
+    const isActive = Math.abs(ngl - p.target) < 0.005;
+    btn.className = isActive
+      ? 'ew-soft-btn ew-soft-cyan justify-center font-bold'
+      : 'ew-soft-btn ew-soft-slate justify-center';
+  });
+}
+
+function syncVerticalNglSliderBounds() {
+  const minBound = roundElev(paramInvert - NGL_MAX_OFFSET);
+  const maxBound = roundElev(paramInvert + NGL_MAX_OFFSET);
+  ngl = clampNglToBlBounds(ngl);
+
+  const nglSliderEl = document.getElementById('nglSlider');
+  const nglInputEl = document.getElementById('nglInput');
+  if (nglSliderEl) {
+    nglSliderEl.min = minBound.toFixed(2);
+    nglSliderEl.max = maxBound.toFixed(2);
+    nglSliderEl.value = ngl.toFixed(2);
+  }
+  if (nglInputEl) {
+    nglInputEl.min = minBound.toFixed(2);
+    nglInputEl.max = maxBound.toFixed(2);
+  }
+
+  const maxLbl = document.getElementById('nglMaxBoundLbl');
+  const minLbl = document.getElementById('nglMinBoundLbl');
+  const centerBlLbl = document.getElementById('nglCenterBlLbl');
+  if (maxLbl) maxLbl.innerText = (maxBound >= 0 ? '+' : '') + maxBound.toFixed(2);
+  if (minLbl) minLbl.innerText = (minBound >= 0 ? '+' : '') + minBound.toFixed(2);
+  if (centerBlLbl) centerBlLbl.innerText = `BL.${paramInvert >= 0 ? '+' : ''}${paramInvert.toFixed(2)}`;
+
+  const span = maxBound - minBound;
+  const pct = span > 0 ? Math.max(0, Math.min(1, (ngl - minBound) / span)) : 0.5;
+  const visualFill = document.getElementById('nglVisualFill');
+  const visualThumb = document.getElementById('nglVisualThumb');
+  const visualTrack = document.getElementById('nglVisualTrack');
+  if (visualFill && visualFill.style) {
+    visualFill.style.height = `${(pct * 100).toFixed(2)}%`;
+  }
+  if (visualThumb && visualThumb.style && visualTrack) {
+    const trackContainer = document.getElementById('nglSliderTrackContainer');
+    const containerH = trackContainer && trackContainer.clientHeight ? trackContainer.clientHeight : 0;
+    if (containerH > 24) {
+      const padPx = 8;
+      const usableH = containerH - padPx * 2;
+      const topPx = padPx + (1 - pct) * usableH;
+      visualThumb.style.top = `${topPx.toFixed(1)}px`;
+    } else {
+      visualThumb.style.top = `${((1 - pct) * 100).toFixed(2)}%`;
+    }
+  }
+  updatePresetCaseButtonsHighlight();
+}
+
+function setNGL(v, formatInputBox = true) {
+  if (isNaN(v)) return;
+  const clamped = clampNglToBlBounds(v);
+  ngl = clamped;
+  syncVerticalNglSliderBounds();
+  const nglInputEl = document.getElementById('nglInput');
+  const nglValEl = document.getElementById('nglVal');
+  if (formatInputBox && nglInputEl) {
+    nglInputEl.value = clamped.toFixed(2);
+  }
+  if (nglValEl) {
+    nglValEl.innerText = (clamped >= 0 ? '+' : '') + clamped.toFixed(2) + ' m';
+  }
+  draw();
+}
+
+function commitNGLInput() {
+  const nglInputEl = document.getElementById('nglInput');
+  if (!nglInputEl) return;
+  const raw = parseFloat(nglInputEl.value);
+  if (!isNaN(raw)) {
+    const minBound = roundElev(paramInvert - NGL_MAX_OFFSET);
+    const maxBound = roundElev(paramInvert + NGL_MAX_OFFSET);
+    if (raw < minBound - 1e-6 || raw > maxBound + 1e-6) {
+      showToast(`จำกัดค่าระดับดินเดิม (NGL) ไม่เกิน ±${NGL_MAX_OFFSET.toFixed(2)} ม. จากระดับ BL. (${minBound.toFixed(2)} ถึง +${maxBound.toFixed(2)} ม.)`, 'amber');
+    }
+    setNGL(clampNglToBlBounds(raw), true);
+  } else {
+    nglInputEl.value = ngl.toFixed(2);
+  }
+}
+
+function setPresetCase(caseNum) {
+  const elevSubbaseBot = roundElev(paramInvert - paramBaseT - paramSubbaseT);
+  if (caseNum === 1) {
+    setNGL(roundElev(elevSubbaseBot + 0.80), true);
+  } else if (caseNum === 2) {
+    setNGL(roundElev(elevSubbaseBot - 0.19), true);
+  } else if (caseNum === 3) {
+    setNGL(roundElev(elevSubbaseBot + 0.35), true);
+  }
+  if (typeof markWorkspaceDirty === 'function') markWorkspaceDirty();
+}
+
+function syncToggleButtonsUI() {
+  const chkStrip = document.getElementById('chkAreaStripping');
+  const chkComp = document.getElementById('chkAreaCompacted');
+  const chkExc = document.getElementById('chkAreaExcavation');
+  const chkMan = document.getElementById('chkAreaManualFill');
+  const toggleSpecs = [
+    {
+      isOn: chkStrip ? chkStrip.checked : true,
+      btnId: 'btnToggleAreaStripping',
+      dotId: 'dotAreaStripping',
+      lblId: 'lblAreaStripping',
+      showText: 'แสดงขุดลอกหน้าดิน',
+      hideText: 'ซ่อนขุดลอกหน้าดิน',
+      onBtnCls: 'ew-soft-btn ew-soft-amber flex-1 min-w-0 justify-center truncate',
+      onDotCls: 'w-2 h-2 rounded-full bg-amber-400 shrink-0'
+    },
+    {
+      isOn: chkComp ? chkComp.checked : true,
+      btnId: 'btnToggleAreaCompacted',
+      dotId: 'dotAreaCompacted',
+      lblId: 'lblAreaCompacted',
+      showText: 'แสดงดินถมบดอัดแน่น 85%',
+      hideText: 'ซ่อนดินถมบดอัดแน่น 85%',
+      onBtnCls: 'ew-soft-btn ew-soft-teal flex-1 min-w-0 justify-center truncate',
+      onDotCls: 'w-2 h-2 rounded-full bg-teal-400 shrink-0'
+    },
+    {
+      isOn: chkExc ? chkExc.checked : true,
+      btnId: 'btnToggleAreaExcavation',
+      dotId: 'dotAreaExcavation',
+      lblId: 'lblAreaExcavation',
+      showText: 'แสดงดินขุด',
+      hideText: 'ซ่อนดินขุด',
+      onBtnCls: 'ew-soft-btn ew-soft-orange flex-1 min-w-0 justify-center truncate',
+      onDotCls: 'w-2 h-2 rounded-full bg-orange-400 shrink-0'
+    },
+    {
+      isOn: chkMan ? chkMan.checked : true,
+      btnId: 'btnToggleAreaManualFill',
+      dotId: 'dotAreaManualFill',
+      lblId: 'lblAreaManualFill',
+      showText: 'แสดงดินถมด้วยแรงคน',
+      hideText: 'ซ่อนดินถมด้วยแรงคน',
+      onBtnCls: 'ew-soft-btn ew-soft-purple flex-1 min-w-0 justify-center truncate',
+      onDotCls: 'w-2 h-2 rounded-full bg-purple-400 shrink-0'
+    },
+    {
+      isOn: showDimsState,
+      btnId: 'toggleDimsBtn',
+      dotId: 'dotDims',
+      lblId: 'lblDims',
+      showText: 'แสดงมิติโครงสร้าง',
+      hideText: 'ซ่อนมิติโครงสร้าง',
+      onBtnCls: 'ew-soft-btn ew-soft-cyan flex-1 min-w-0 justify-center truncate',
+      onDotCls: 'w-2 h-2 rounded-full bg-cyan-400 shrink-0'
+    },
+    {
+      isOn: showWidthsState,
+      btnId: 'toggleWidthsBtn',
+      dotId: 'dotWidths',
+      lblId: 'lblWidths',
+      showText: 'แสดงความกว้างขุดลอก/คันดิน',
+      hideText: 'ซ่อนความกว้างขุดลอก/คันดิน',
+      onBtnCls: 'ew-soft-btn ew-soft-pink flex-1 min-w-0 justify-center truncate',
+      onDotCls: 'w-2 h-2 rounded-full bg-pink-400 shrink-0'
+    }
+  ];
+
+  const offBtnCls = 'ew-soft-btn ew-soft-muted flex-1 min-w-0 justify-center truncate';
+  const offDotCls = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
+
+  toggleSpecs.forEach(spec => {
+    const btnEl = document.getElementById(spec.btnId);
+    const dotEl = document.getElementById(spec.dotId);
+    const lblEl = document.getElementById(spec.lblId);
+    if (!btnEl || !dotEl || !lblEl) return;
+    btnEl.className = spec.isOn ? spec.onBtnCls : offBtnCls;
+    dotEl.className = spec.isOn ? spec.onDotCls : offDotCls;
+    lblEl.innerText = spec.isOn ? spec.showText : spec.hideText;
+  });
+}
+
+function updateParams(commitFormatting = false) {
+  const inputInvert = document.getElementById('inputInvert');
+  const inputB = document.getElementById('inputB');
+  const inputH = document.getElementById('inputH');
+  const inputTBL = document.getElementById('inputTBL');
+  const inputTBR = document.getElementById('inputTBR');
+  const inputWallT = document.getElementById('inputWallT');
+  const inputBaseT = document.getElementById('inputBaseT');
+  const inputSubbaseT = document.getElementById('inputSubbaseT');
+  const inputTopsoil = document.getElementById('inputTopsoil');
+  const nglSlider = document.getElementById('nglSlider');
+  const nglInput = document.getElementById('nglInput');
+  const nglVal = document.getElementById('nglVal');
+
+  const prevInvert = paramInvert;
+  if (inputInvert) {
+    const parsedInvert = parseFloat(inputInvert.value);
+    if (!isNaN(parsedInvert)) {
+      paramInvert = roundElev(parsedInvert);
+      if (commitFormatting) inputInvert.value = paramInvert.toFixed(2);
+    }
+  }
+  const bVal = inputB ? parseFloat(inputB.value) : NaN;
+  const hVal = inputH ? parseFloat(inputH.value) : NaN;
+  const tblVal = inputTBL ? parseFloat(inputTBL.value) : NaN;
+  const tbrVal = inputTBR ? parseFloat(inputTBR.value) : NaN;
+  const wallVal = inputWallT ? parseFloat(inputWallT.value) : NaN;
+  const baseVal = inputBaseT ? parseFloat(inputBaseT.value) : NaN;
+  const subVal = inputSubbaseT ? parseFloat(inputSubbaseT.value) : NaN;
+  const topVal = inputTopsoil ? parseFloat(inputTopsoil.value) : NaN;
+
+  if (!isNaN(bVal) && bVal >= 0.05) paramB = roundLen(bVal);
+  if (!isNaN(hVal) && hVal >= 0.05) paramH = roundLen(hVal);
+  if (!isNaN(tblVal) && tblVal >= 0) paramTBL = roundLen(tblVal);
+  if (!isNaN(tbrVal) && tbrVal >= 0) paramTBR = roundLen(tbrVal);
+  if (!isNaN(wallVal) && wallVal >= 0.01) paramWallT = roundLen(wallVal);
+  if (!isNaN(baseVal) && baseVal >= 0.01) paramBaseT = roundLen(baseVal);
+  if (!isNaN(subVal) && subVal >= 0) paramSubbaseT = roundLen(subVal);
+  if (!isNaN(topVal) && topVal >= 0) paramTopsoil = roundLen(topVal);
+
+  if (commitFormatting) {
+    if (inputB) inputB.value = paramB.toFixed(2);
+    if (inputH) inputH.value = paramH.toFixed(2);
+    if (inputTBL) inputTBL.value = paramTBL.toFixed(2);
+    if (inputTBR) inputTBR.value = paramTBR.toFixed(2);
+    if (inputWallT) inputWallT.value = paramWallT.toFixed(2);
+    if (inputBaseT) inputBaseT.value = paramBaseT.toFixed(2);
+    if (inputSubbaseT) inputSubbaseT.value = paramSubbaseT.toFixed(2);
+    if (inputTopsoil) inputTopsoil.value = paramTopsoil.toFixed(2);
+  }
+
+  if (Math.abs(paramInvert - prevInvert) > 1e-6) {
+    const diffStep = roundElev(paramInvert - prevInvert);
+    ngl = roundElev(ngl + diffStep);
+    if (nglSlider) {
+      nglSlider.min = roundElev(paramInvert - NGL_MAX_OFFSET).toFixed(2);
+      nglSlider.max = roundElev(paramInvert + NGL_MAX_OFFSET).toFixed(2);
+    }
+    if (nglInput) nglInput.value = ngl.toFixed(2);
+    if (nglVal) nglVal.innerText = (ngl >= 0 ? '+' : '') + ngl.toFixed(2) + ' m';
+  }
+
+  if (commitFormatting && Math.abs(paramInvert - lastCommittedInvert) > 1e-6) {
+    lastCommittedInvert = paramInvert;
+    setNGL(ngl, true);
+    resetView();
+    return;
+  }
+  draw();
+}
+
+function resetParams() {
+  const inputInvert = document.getElementById('inputInvert');
+  const inputB = document.getElementById('inputB');
+  const inputH = document.getElementById('inputH');
+  const inputTBL = document.getElementById('inputTBL');
+  const inputTBR = document.getElementById('inputTBR');
+  const inputWallT = document.getElementById('inputWallT');
+  const inputBaseT = document.getElementById('inputBaseT');
+  const inputSubbaseT = document.getElementById('inputSubbaseT');
+  const inputTopsoil = document.getElementById('inputTopsoil');
+  const nglSlider = document.getElementById('nglSlider');
+
+  if (inputInvert) inputInvert.value = "100.00";
+  if (inputB) inputB.value = "0.35";
+  if (inputH) inputH.value = "0.50";
+  if (inputTBL) inputTBL.value = "0.50";
+  if (inputTBR) inputTBR.value = "0.50";
+  if (inputWallT) inputWallT.value = "0.10";
+  if (inputBaseT) inputBaseT.value = "0.10";
+  if (inputSubbaseT) inputSubbaseT.value = "0.05";
+  if (inputTopsoil) inputTopsoil.value = "0.30";
+  paramInvert = 100.00;
+  lastCommittedInvert = 100.00;
+  if (typeof section1ActiveStationInfo !== 'undefined') {
+    section1ActiveStationInfo = null;
+  }
+  if (nglSlider) {
+    nglSlider.min = "97.00";
+    nglSlider.max = "103.00";
+  }
+  setNGL(99.66, true);
+  updateParams(false);
+  resetView();
+}
+
+function resizeCanvas() {
+  const ewCanvas = document.getElementById('ewCrossSectionCanvas');
+  if (!ewCanvas || !ewCanvas.parentElement || typeof ewCanvas.parentElement.getBoundingClientRect !== 'function') return;
+  const rect = ewCanvas.parentElement.getBoundingClientRect();
+  if (rect.width < 50) return;
+  cssWidth = Math.max(260, rect.width);
+  cssHeight = Math.max(380, Math.floor(rect.height || 380));
+  dpr = Math.max(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
+  ewCanvas.width = Math.round(cssWidth * dpr);
+  ewCanvas.height = Math.round(cssHeight * dpr);
+  if (ewCanvas.style) {
+    ewCanvas.style.width = '100%';
+    ewCanvas.style.height = '100%';
+  }
+  if (mainView.panX === 0 && mainView.panY === 0) {
+    resetView();
+  } else {
+    draw();
+  }
+}
+
+function setLeftSidebarCollapsed(collapsed) {
+  const leftSidebarExpanded = document.getElementById('leftSidebarExpanded');
+  const leftSidebarCollapsedStrip = document.getElementById('leftSidebarCollapsedStrip');
+  if (!leftSidebarExpanded || !leftSidebarCollapsedStrip) return;
+  if (collapsed) {
+    leftSidebarExpanded.classList.add('hidden');
+    if (leftSidebarExpanded.style) leftSidebarExpanded.style.display = 'none';
+    leftSidebarCollapsedStrip.classList.remove('hidden');
+    leftSidebarCollapsedStrip.classList.add('flex');
+    if (leftSidebarCollapsedStrip.style) leftSidebarCollapsedStrip.style.display = 'flex';
+  } else {
+    leftSidebarCollapsedStrip.classList.add('hidden');
+    leftSidebarCollapsedStrip.classList.remove('flex');
+    if (leftSidebarCollapsedStrip.style) leftSidebarCollapsedStrip.style.display = 'none';
+    leftSidebarExpanded.classList.remove('hidden');
+    if (leftSidebarExpanded.style) leftSidebarExpanded.style.display = '';
+  }
+  setTimeout(() => {
+    resizeCanvas();
+    resetView();
+  }, 30);
+}
+
+function setRightSidebarCollapsed(collapsed) {
+  const rightSidebarExpanded = document.getElementById('rightSidebarExpanded');
+  const rightSidebarCollapsedStrip = document.getElementById('rightSidebarCollapsedStrip');
+  if (!rightSidebarExpanded || !rightSidebarCollapsedStrip) return;
+  if (collapsed) {
+    rightSidebarExpanded.classList.add('hidden');
+    if (rightSidebarExpanded.style) rightSidebarExpanded.style.display = 'none';
+    rightSidebarCollapsedStrip.classList.remove('hidden');
+    rightSidebarCollapsedStrip.classList.add('flex');
+    if (rightSidebarCollapsedStrip.style) rightSidebarCollapsedStrip.style.display = 'flex';
+  } else {
+    rightSidebarCollapsedStrip.classList.add('hidden');
+    rightSidebarCollapsedStrip.classList.remove('flex');
+    if (rightSidebarCollapsedStrip.style) rightSidebarCollapsedStrip.style.display = 'none';
+    rightSidebarExpanded.classList.remove('hidden');
+    if (rightSidebarExpanded.style) rightSidebarExpanded.style.display = '';
+  }
+  setTimeout(() => {
+    resizeCanvas();
+    resetView();
+  }, 30);
+}
+
+function resetView() {
+  const centerElev = paramInvert + paramH * 0.05;
+  mainView.scale = Math.min(cssWidth / 4.6, cssHeight / 3.5);
+  mainView.panX = cssWidth / 2;
+  mainView.panY = cssHeight / 2 + centerElev * mainView.scale;
+  draw();
+}
+
+function draw() {
+  syncVerticalNglSliderBounds();
+  const sec = computeSectionData({
+    invert: paramInvert,
+    ngl: ngl,
+    B: paramB,
+    H: paramH,
+    TBL: paramTBL,
+    TBR: paramTBR,
+    tw: paramWallT,
+    tb: paramBaseT,
+    ts: paramSubbaseT,
+    dt: paramTopsoil
+  });
+
+  const canalTxtEl = document.getElementById('mainCanalNameText');
+  const subCanalTxtEl = document.getElementById('mainSubCanalNameText');
+  const staTxtEl = document.getElementById('mainStationText');
+
+  if (typeof section1ActiveStationInfo !== 'undefined' && section1ActiveStationInfo) {
+    if (canalTxtEl) canalTxtEl.innerText = section1ActiveStationInfo.canalName || '-';
+    if (subCanalTxtEl) subCanalTxtEl.innerText = section1ActiveStationInfo.subCanalName || '-';
+    if (staTxtEl) staTxtEl.innerText = section1ActiveStationInfo.stationFullText || `กม. ${section1ActiveStationInfo.stationFormatted}`;
+  } else {
+    const activeRow = (typeof boqRows !== 'undefined' && boqRows[selectedRowIndex]) ? boqRows[selectedRowIndex] : {};
+    const cName = activeRow.canalName ? String(activeRow.canalName).trim() : '-';
+    const sName = activeRow.subCanalName ? String(activeRow.subCanalName).trim() : '-';
+    const staVal = activeRow.staStart !== undefined && activeRow.staStart !== null ? formatMetersToStation(parseStationToMeters(activeRow.staStart)) : '-';
+    if (canalTxtEl) canalTxtEl.innerText = cName || '-';
+    if (subCanalTxtEl) subCanalTxtEl.innerText = sName || '-';
+    if (staTxtEl) staTxtEl.innerText = staVal !== '-' ? `กม. ${staVal}` : '-';
+  }
+
+  const refElevInfo = document.getElementById('refElevInfo');
+  const dimSummaryBadge = document.getElementById('dimSummaryBadge');
+  const statNglStatus = document.getElementById('statNglStatus');
+  const statTopsoilElev = document.getElementById('statTopsoilElev');
+
+  if (refElevInfo) refElevInfo.innerText = `* ท้องคู (BL.) = +${sec.elevs.ELEV_CANAL_INVERT.toFixed(2)} m | ท้องรองพื้น = +${sec.elevs.ELEV_SUBBASE_BOT.toFixed(2)} m | หลังคลอง = +${sec.elevs.ELEV_TOP_RIM.toFixed(2)} m`;
+  if (dimSummaryBadge) dimSummaryBadge.innerText = `BL.=+${sec.elevs.ELEV_CANAL_INVERT.toFixed(2)}m | B=${paramB.toFixed(2)}m, H=${paramH.toFixed(2)}m, tw=${paramWallT.toFixed(2)}m, tb=${paramBaseT.toFixed(2)}m, ts=${paramSubbaseT.toFixed(2)}m, TBL=${paramTBL.toFixed(2)}m, TBR=${paramTBR.toFixed(2)}m`;
+
+  if (statNglStatus) {
+    statNglStatus.innerText = sec.flags.statusText;
+    if (sec.flags.statusType === 'cut') {
+      statNglStatus.className = 'font-bold text-emerald-400';
+    } else if (sec.flags.statusType === 'fill') {
+      statNglStatus.className = 'font-bold text-amber-400';
+    } else {
+      statNglStatus.className = 'font-bold text-cyan-400';
+    }
+  }
+  if (statTopsoilElev) {
+    statTopsoilElev.innerText = (sec.elevs.topsoilElev >= 0 ? '+' : '') + sec.elevs.topsoilElev.toFixed(2) + ' m';
+  }
+
+  const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+  setTxt('nodesStripping', sec.nodeLabels.nodesStrippingStr);
+  setTxt('nodesCompacted', sec.nodeLabels.nodesCompactedStr);
+  setTxt('nodesExcavation', sec.nodeLabels.nodesExcavationStr);
+  setTxt('nodesManualLeft', sec.nodeLabels.nodesManualLeftStr);
+  setTxt('nodesManualRight', sec.nodeLabels.nodesManualRightStr);
+
+  setTxt('valAreaStripping', sec.areas.stripping.toFixed(3));
+  setTxt('valAreaCompacted', sec.areas.compacted.toFixed(3));
+  setTxt('valAreaExcavation', sec.areas.excavation.toFixed(3));
+  setTxt('valAreaManualLeft', sec.areas.manualLeft.toFixed(3));
+  setTxt('valAreaManualRight', sec.areas.manualRight.toFixed(3));
+  setTxt('valAreaManualTotal', sec.areas.manualTotal.toFixed(3));
+  setTxt('valAreaConcrete', sec.areas.concrete.toFixed(3));
+  setTxt('valAreaSubbase', sec.areas.subbase.toFixed(3));
+  setTxt('valWidth69', roundLen(sec.widths.width69).toFixed(2) + ' m');
+  setTxt('valWidth114', (sec.nodes.p1 || sec.nodes.p14)
+    ? (roundLen(sec.widths.width114).toFixed(2) + ' m')
+    : '- (ขุดลึกมาตรฐาน)');
+
+  const ewCanvas = document.getElementById('ewCrossSectionCanvas');
+  const ewCtx = (ewCanvas && typeof ewCanvas.getContext === 'function') ? ewCanvas.getContext('2d') : null;
+  if (!ewCtx) return;
+
+  const chkStrip = document.getElementById('chkAreaStripping');
+  const chkComp = document.getElementById('chkAreaCompacted');
+  const chkExc = document.getElementById('chkAreaExcavation');
+  const chkMan = document.getElementById('chkAreaManualFill');
+
+  renderSectionToCanvas(ewCtx, cssWidth, cssHeight, dpr, mainView, sec, {
+    showStripping: chkStrip ? chkStrip.checked : true,
+    showCompacted: chkComp ? chkComp.checked : true,
+    showExcavation: chkExc ? chkExc.checked : true,
+    showManualFill: chkMan ? chkMan.checked : true,
+    showDims: showDimsState,
+    showWidths: showWidthsState,
+    compact: false
+  });
+}
+
+function initEarthworkPart3Model() {
+  if (_part3ModelEventsBound) return;
+  _part3ModelEventsBound = true;
+
+  const ewCanvas = document.getElementById('ewCrossSectionCanvas');
+  if (ewCanvas) {
+    bindCanvasPanZoom(ewCanvas, mainView, draw);
+  }
+
+  const btnSnapNglToBl = document.getElementById('btnSnapNglToBl');
+  if (btnSnapNglToBl) {
+    btnSnapNglToBl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setNGL(paramInvert, true);
+      if (typeof markWorkspaceDirty === 'function') markWorkspaceDirty();
+    });
+  }
+
+  const nglSliderTrackContainer = document.getElementById('nglSliderTrackContainer');
+  if (nglSliderTrackContainer && typeof nglSliderTrackContainer.addEventListener === 'function') {
+    let isDraggingNglTrack = false;
+    const updateNglFromPointerY = (clientY) => {
+      const rect = nglSliderTrackContainer.getBoundingClientRect();
+      const padPx = 8;
+      const usableH = Math.max(20, rect.height - padPx * 2);
+      const relY = clientY - (rect.top + padPx);
+      const pct = Math.max(0, Math.min(1, 1 - (relY / usableH)));
+      const minBound = roundElev(paramInvert - NGL_MAX_OFFSET);
+      const maxBound = roundElev(paramInvert + NGL_MAX_OFFSET);
+      const targetVal = roundElev(minBound + pct * (maxBound - minBound));
+      setNGL(targetVal, true);
+      if (typeof markWorkspaceDirty === 'function') markWorkspaceDirty();
+    };
+
+    nglSliderTrackContainer.addEventListener('mousedown', (e) => {
+      if (e.target && typeof e.target.closest === 'function' && e.target.closest('#btnSnapNglToBl')) return;
+      e.preventDefault();
+      isDraggingNglTrack = true;
+      updateNglFromPointerY(e.clientY);
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!isDraggingNglTrack) return;
+      updateNglFromPointerY(e.clientY);
+    });
+    window.addEventListener('mouseup', () => {
+      isDraggingNglTrack = false;
+    });
+    nglSliderTrackContainer.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const stepDelta = e.deltaY < 0 ? 0.02 : -0.02;
+      setNGL(clampNglToBlBounds(ngl + stepDelta), true);
+      if (typeof markWorkspaceDirty === 'function') markWorkspaceDirty();
+    }, { passive: false });
+  }
+
+  const nglSlider = document.getElementById('nglSlider');
+  const nglInput = document.getElementById('nglInput');
+  const inputInvert = document.getElementById('inputInvert');
+
+  nglSlider?.addEventListener('input', (e) => setNGL(parseFloat(e.target.value), true));
+  nglInput?.addEventListener('input', () => {
+    const raw = parseFloat(nglInput.value);
+    if (!isNaN(raw)) {
+      const minBound = paramInvert - NGL_MAX_OFFSET;
+      const maxBound = paramInvert + NGL_MAX_OFFSET;
+      if (raw >= minBound && raw <= maxBound) setNGL(raw, false);
+    }
+  });
+  nglInput?.addEventListener('change', commitNGLInput);
+  nglInput?.addEventListener('blur', commitNGLInput);
+  nglInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commitNGLInput();
+      if (typeof nglInput.blur === 'function') nglInput.blur();
+    }
+  });
+
+  inputInvert?.addEventListener('input', () => updateParams(false));
+  inputInvert?.addEventListener('change', () => updateParams(true));
+  inputInvert?.addEventListener('blur', () => updateParams(true));
+  inputInvert?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      updateParams(true);
+      if (typeof inputInvert.blur === 'function') inputInvert.blur();
+    }
+  });
+
+  document.getElementById('resetViewBtn')?.addEventListener('click', () => {
+    ['chkAreaStripping', 'chkAreaCompacted', 'chkAreaExcavation', 'chkAreaManualFill'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = true;
+    });
+    showDimsState = true;
+    showWidthsState = true;
+    syncToggleButtonsUI();
+    resetView();
+    if (typeof markWorkspaceDirty === 'function') markWorkspaceDirty();
+  });
+
+  document.getElementById('resetParamsBtn')?.addEventListener('click', resetParams);
+
+  document.getElementById('toggleDimsBtn')?.addEventListener('click', () => {
+    showDimsState = !showDimsState;
+    syncToggleButtonsUI();
+    draw();
+  });
+
+  document.getElementById('toggleWidthsBtn')?.addEventListener('click', () => {
+    showWidthsState = !showWidthsState;
+    syncToggleButtonsUI();
+    draw();
+  });
+
+  [
+    { btnId: 'btnToggleAreaStripping', chkId: 'chkAreaStripping' },
+    { btnId: 'btnToggleAreaCompacted', chkId: 'chkAreaCompacted' },
+    { btnId: 'btnToggleAreaExcavation', chkId: 'chkAreaExcavation' },
+    { btnId: 'btnToggleAreaManualFill', chkId: 'chkAreaManualFill' }
+  ].forEach(pair => {
+    const btnEl = document.getElementById(pair.btnId);
+    const chkEl = document.getElementById(pair.chkId);
+    if (btnEl && chkEl) {
+      btnEl.addEventListener('click', () => {
+        chkEl.checked = !chkEl.checked;
+        syncToggleButtonsUI();
+        draw();
+        if (typeof markWorkspaceDirty === 'function') markWorkspaceDirty();
+      });
+    }
+  });
+
+  ['inputB', 'inputH', 'inputTBL', 'inputTBR', 'inputWallT', 'inputBaseT', 'inputSubbaseT', 'inputTopsoil'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('change', () => updateParams(true));
+    el.addEventListener('blur', () => updateParams(true));
+    el.addEventListener('input', () => updateParams(false));
+  });
+
+  document.getElementById('btnCollapseLeftSidebar')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setLeftSidebarCollapsed(true);
+  });
+  document.getElementById('leftSidebarCollapsedStrip')?.addEventListener('click', () => {
+    setLeftSidebarCollapsed(false);
+  });
+  document.getElementById('btnExpandLeftSidebar')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setLeftSidebarCollapsed(false);
+  });
+
+  document.getElementById('btnCollapseRightSidebar')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setRightSidebarCollapsed(true);
+  });
+  document.getElementById('rightSidebarCollapsedStrip')?.addEventListener('click', () => {
+    setRightSidebarCollapsed(false);
+  });
+  document.getElementById('btnExpandRightSidebar')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setRightSidebarCollapsed(false);
+  });
+
+  syncToggleButtonsUI();
+}
 
 function saveCurrentDigPageState() {}
 function updateDigTable() {}
@@ -50,7 +984,7 @@ function buildWorkspaceSavePayload() {
     savedAtFormatted: formatThaiDateTime(new Date()),
     savedTimeShort: formatTimeOnly(new Date()),
     boqRows: cloneBoqRows(boqRows),
-    masterBoqRows: cloneBoqRows(masterBoqRows),
+    masterBoqRows: cloneBoqRows(hiddenStationCategories.size === 0 ? boqRows : masterBoqRows),
     hiddenStationCategories: Array.from(hiddenStationCategories),
     lastSubdivideStepLabel: lastSubdivideStepLabel,
     savedNglProfilesByLine: savedNglProfilesByLine,
@@ -145,12 +1079,38 @@ function switchQuantityCalcTab(subName) {
   if (!subName) subName = 'earthwork';
   quantityCalcActiveTab = subName;
 
+  const isStructureTab = (subName === 'structure' || subName === 'qty-structure');
   const btnEarth = document.getElementById('qty-calc-tab-earthwork');
-  if (btnEarth && btnEarth.classList) btnEarth.classList.toggle('active', subName === 'earthwork');
+  const btnStruct = document.getElementById('qty-calc-tab-structure');
+  if (btnEarth && btnEarth.classList) btnEarth.classList.toggle('active', !isStructureTab);
+  if (btnStruct && btnStruct.classList) btnStruct.classList.toggle('active', isStructureTab);
+
+  const ewContainer = document.getElementById('quantityCalcEarthworkContainer');
+  const stContainer = document.getElementById('quantityCalcStructureContainer');
+  if (ewContainer) {
+    if (ewContainer.classList) ewContainer.classList.toggle('hidden', isStructureTab);
+    ewContainer.style.display = isStructureTab ? 'none' : '';
+  }
+  if (stContainer) {
+    if (stContainer.classList) stContainer.classList.toggle('hidden', !isStructureTab);
+    stContainer.style.display = isStructureTab ? 'flex' : 'none';
+  }
 
   const titleEl = document.getElementById('quantityCalcActiveTabTitle');
   if (titleEl) {
-    titleEl.textContent = '⛰️ งานดิน';
+    titleEl.textContent = isStructureTab ? '🏗️ งานอาคารประกอบ' : '⛰️ งานดิน';
+  }
+
+  if (isStructureTab) {
+    if (typeof syncQtyStructureFromTakeoff === 'function') {
+      const curStSig = typeof computeTakeoffSignatureForQtyStructure === 'function' ? computeTakeoffSignatureForQtyStructure() : '';
+      if (!qtyStructureHasSyncedInitial || curStSig !== lastQtyStructureTakeoffSignature) {
+        syncQtyStructureFromTakeoff(false);
+      } else if (typeof renderQtyStructureTables === 'function') {
+        renderQtyStructureTables();
+      }
+    }
+    return;
   }
 
   // ดึงข้อมูลจากส่วนถอดแบบมาซิงก์อัตโนมัติเมื่อเปิดหน้าส่วนคำนวณปริมาณ หรือเมื่อข้อมูลในส่วนถอดแบบมีการเปลี่ยนแปลง
@@ -167,6 +1127,8 @@ function switchQuantityCalcTab(subName) {
   setTimeout(() => {
     if (typeof resizeComparisonCanvases === 'function') resizeComparisonCanvases(true);
     if (typeof drawLongitudinalProfile === 'function') drawLongitudinalProfile();
+    if (typeof resizeCanvas === 'function') resizeCanvas();
+    if (typeof resetView === 'function') resetView();
   }, 40);
 }
 
@@ -531,6 +1493,9 @@ function syncEarthworkFromTakeoff(showFeedback) {
   resizeComparisonCanvases(true);
   updateComparisonView(true);
   drawLongitudinalProfile();
+  if (boqRows && boqRows.length > 0 && typeof syncPart3ModelWithRow === 'function') {
+    syncPart3ModelWithRow(boqRows[selectedRowIndex] || boqRows[0], 'start', false);
+  }
 
   if (showFeedback) {
     const lineCount = getUniqueCanalLinesFromBoqTable().length;
@@ -688,73 +1653,6 @@ function getUniqueCanalLinesFromBoqTable() {
         entry.maxSta = Math.max(entry.maxSta, s1, s2);
     });
     return Array.from(map.values());
-}
-
-// ============================================================================
-// รอบ 60: ตัวกรองสายคูส่งน้ำ + ย่อ/ขยายข้อมูลรายสายในตาราง BoQ
-// ============================================================================
-let activeCanalLineFilter = 'all';                 // 'all' หรือ lineKey ของสายคูส่งน้ำที่เลือก
-const collapsedCanalLines = new Set();             // lineKey ของสายที่ถูกย่อไว้
-
-function getCanalLineFilterOptions() {
-    return getUniqueCanalLinesFromBoqTable();
-}
-
-/** เติมตัวเลือกลงในดรอปลิด #selectCanalLineFilter (ใต้ปุ่มซ่อน/แสดงคอลัมน์) */
-function updateCanalLineFilterOptions() {
-    const sel = document.getElementById('selectCanalLineFilter');
-    if (!sel) return;
-    const options = getCanalLineFilterOptions();
-    const prevValue = activeCanalLineFilter;
-
-    const buildLabel = (o) => {
-        const order = options.indexOf(o) + 1;
-        return `สายที่ ${order}: คลอง ${o.canalName} • คูส่งน้ำ ${o.subCanalName} (${o.rowCount} แถว)`;
-    };
-
-    sel.innerHTML = `<option value="all">แสดงทั้งหมด (ทุกสาย • ${options.length} สาย)</option>`
-        + options.map(o => `<option value="${ewEscapeAttr(o.lineKey)}">${ewEscapeHtml(buildLabel(o))}</option>`).join('');
-
-    // ถ้าสายที่เคยเลือกหายไป ให้กลับไปแสดงทั้งหมด
-    const exists = prevValue === 'all' || options.some(o => o.lineKey === prevValue);
-    activeCanalLineFilter = exists ? prevValue : 'all';
-    sel.value = activeCanalLineFilter;
-}
-
-function ewEscapeAttr(v) {
-    return String(v ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-function ewEscapeHtml(v) {
-    return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-/** เรียกจาก onchange ของดรอปลิด */
-function applyCanalLineFilter(lineKey) {
-    activeCanalLineFilter = (lineKey === 'all' || !lineKey) ? 'all' : String(lineKey);
-    const sel = document.getElementById('selectCanalLineFilter');
-    if (sel) sel.value = activeCanalLineFilter;
-    // ตัดสายที่ถูกย่อไว้ออกจากรายการย่อ เพื่อไม่ให้ค้างกับสายที่ไม่ได้แสดง
-    if (activeCanalLineFilter !== 'all') {
-        collapsedCanalLines.delete(activeCanalLineFilter);
-    }
-    renderBoqTable();
-}
-
-/** สลับสถานะย่อ/ขยายของสายคูส่งน้ำที่ระบุ */
-function toggleCanalLineCollapse(lineKey) {
-    const key = String(lineKey ?? '');
-    if (!key) return;
-    if (collapsedCanalLines.has(key)) {
-        collapsedCanalLines.delete(key);
-    } else {
-        collapsedCanalLines.add(key);
-    }
-    renderBoqTable();
-}
-
-function isCanalLineCollapsed(lineKey) {
-    return collapsedCanalLines.has(String(lineKey ?? ''));
 }
 
 function updateSavedNglLinesBadgeUI() {
@@ -1312,27 +2210,34 @@ function renderSectionToCanvas(targetCtx, cssW, cssH, deviceRatio, viewState, se
         targetCtx.restore();
     };
 
-    const drawPillTextLocal = (text, sx, sy, textColor = '#ffffff', bgColor = '#0f172a', borderColor = '#38bdf8') => {
+    const drawPillTextLocal = (text, sx, sy, textColor = '#0f172a', bgColor = 'rgba(255, 255, 255, 0.85)', borderColor = '#38bdf8') => {
         targetCtx.save();
-        targetCtx.font = opts.compact ? '600 10.5px "Sarabun", sans-serif' : '600 12.5px "Sarabun", sans-serif';
+        targetCtx.font = opts.compact ? '600 10.5px "Sarabun", sans-serif' : '600 12px "Sarabun", sans-serif';
         const metrics = targetCtx.measureText(text);
         const padX = opts.compact ? 6 : 8;
         const w = Math.ceil(metrics.width) + padX * 2;
-        const h = opts.compact ? 19 : 22;
+        const h = opts.compact ? 18 : 21;
         const rx = Math.round(sx);
         const ry = Math.round(sy);
         const x0 = Math.round(rx - w / 2) + 0.5;
         const y0 = Math.round(ry - h / 2) + 0.5;
 
-        targetCtx.fillStyle = bgColor;
+        const resolvedBg = (bgColor === '#0f172a' || bgColor === '#1e293b' || String(bgColor).startsWith('rgba(15, 23, 42') || String(bgColor).startsWith('rgba(2, 6, 23'))
+            ? 'rgba(255, 255, 255, 0.85)'
+            : bgColor;
+        const resolvedText = (textColor === '#ffffff' || textColor === '#bae6fd' || textColor === '#f8fafc' || textColor === '#e2e8f0')
+            ? '#0f172a'
+            : textColor;
+
+        targetCtx.fillStyle = resolvedBg;
         targetCtx.strokeStyle = borderColor;
-        targetCtx.lineWidth = 1.2;
+        targetCtx.lineWidth = 1.15;
         targetCtx.beginPath();
         targetCtx?.roundRect?.(x0, y0, w, h, 5);
         targetCtx.fill();
         targetCtx.stroke();
 
-        targetCtx.fillStyle = textColor;
+        targetCtx.fillStyle = resolvedText;
         targetCtx.textAlign = 'center';
         targetCtx.textBaseline = 'middle';
         targetCtx.fillText(text, rx, ry + 0.5);
@@ -1409,31 +2314,31 @@ function renderSectionToCanvas(targetCtx, cssW, cssH, deviceRatio, viewState, se
     const { isHighNGL, isLeftSpecial, isRightSpecial } = sec.flags;
     const { ngl, B, H, TBL, TBR, tw, tb, ts, dt } = sec.params;
 
-    fillPolyLocal(sec.polys.fullEarthPoly, '#1e293b', '#475569');
+    fillPolyLocal(sec.polys.fullEarthPoly, 'rgba(226, 232, 240, 0.28)', 'rgba(148, 163, 184, 0.45)');
 
     if (opts.showStripping && sec.areas.stripping > 0) {
-        fillPolyLocal(sec.polys.polyStripping, 'rgba(245, 158, 11, 0.35)', 'rgba(245, 158, 11, 0.8)');
-        drawAreaLabelLocal(sec.polys.polyStripping, sec.areas.stripping, '#fbbf24');
+        fillPolyLocal(sec.polys.polyStripping, 'rgba(253, 230, 138, 0.35)', 'rgba(245, 158, 11, 0.7)');
+        drawAreaLabelLocal(sec.polys.polyStripping, sec.areas.stripping, '#b45309');
     }
     if (opts.showCompacted && topsoilElev <= ELEV_SUBBASE_BOT && sec.areas.compacted > 0) {
-        fillPolyLocal(sec.polys.polyCompacted, 'rgba(20, 184, 166, 0.35)', 'rgba(20, 184, 166, 0.8)');
-        drawAreaLabelLocal(sec.polys.polyCompacted, sec.areas.compacted, '#2dd4bf');
+        fillPolyLocal(sec.polys.polyCompacted, 'rgba(153, 246, 228, 0.35)', 'rgba(20, 184, 166, 0.7)');
+        drawAreaLabelLocal(sec.polys.polyCompacted, sec.areas.compacted, '#0f766e');
     }
     if (opts.showExcavation && topsoilElev > ELEV_SUBBASE_BOT && sec.areas.excavation > 0) {
-        fillPolyLocal(sec.polys.polyExcavation, 'rgba(249, 115, 22, 0.4)', 'rgba(249, 115, 22, 0.8)');
-        drawAreaLabelLocal(sec.polys.polyExcavation, sec.areas.excavation, '#fb923c');
+        fillPolyLocal(sec.polys.polyExcavation, 'rgba(254, 215, 170, 0.38)', 'rgba(249, 115, 22, 0.7)');
+        drawAreaLabelLocal(sec.polys.polyExcavation, sec.areas.excavation, '#c2410c');
     }
     if (opts.showManualFill) {
-        fillPolyLocal(sec.polys.polyManualLeft, 'rgba(168, 85, 247, 0.35)', 'rgba(168, 85, 247, 0.8)');
-        fillPolyLocal(sec.polys.polyManualRight, 'rgba(168, 85, 247, 0.35)', 'rgba(168, 85, 247, 0.8)');
-        drawAreaLabelLocal(sec.polys.polyManualLeft, sec.areas.manualLeft, '#d8b4fe');
-        drawAreaLabelLocal(sec.polys.polyManualRight, sec.areas.manualRight, '#d8b4fe');
+        fillPolyLocal(sec.polys.polyManualLeft, 'rgba(233, 213, 255, 0.35)', 'rgba(168, 85, 247, 0.7)');
+        fillPolyLocal(sec.polys.polyManualRight, 'rgba(233, 213, 255, 0.35)', 'rgba(168, 85, 247, 0.7)');
+        drawAreaLabelLocal(sec.polys.polyManualLeft, sec.areas.manualLeft, '#6b21a8');
+        drawAreaLabelLocal(sec.polys.polyManualRight, sec.areas.manualRight, '#6b21a8');
     }
 
     if (ts > 0) {
-        fillPolyLocal(sec.polys.subbasePts, 'rgba(125, 211, 252, 0.55)', '#7dd3fc');
+        fillPolyLocal(sec.polys.subbasePts, 'rgba(186, 230, 253, 0.42)', '#7dd3fc');
     }
-    fillPolyLocal(sec.polys.concretePts, '#334155', '#38bdf8');
+    fillPolyLocal(sec.polys.concretePts, 'rgba(186, 230, 253, 0.32)', '#38bdf8');
 
     drawLineLocal(p4, p5, '#eab308', 2.5);
     drawLineLocal(p11, p10, '#eab308', 2.5);
@@ -1785,61 +2690,59 @@ function renderCalcDiagramWhiteBg(sec, categoryKey, cssW = 760, cssH = 340) {
         c.restore();
     };
 
-    // 2. Base Earth & Base Ditch on White Background
-    fillPoly(sec.polys.fullEarthPoly, '#0f172a', '#cbd5e1', 1);
+    // 2. Base Earth & Base Ditch on White Background (Soft light pastel tones per รูป 4)
+    fillPoly(sec.polys.fullEarthPoly, 'rgba(241, 245, 249, 0.55)', '#cbd5e1', 1);
 
-    // Subbase & Concrete default
+    // Subbase & Concrete default (Soft light pastel sky tones per รูป 4)
     if (sec.params.ts > 0) {
-        fillPoly(sec.polys.subbasePts, '#f1f5f9', '#94a3b8', 1);
+        fillPoly(sec.polys.subbasePts, 'rgba(224, 242, 254, 0.55)', '#7dd3fc', 1);
     }
-    fillPoly(sec.polys.concretePts, '#1e293b', '#64748b', 1.2);
+    fillPoly(sec.polys.concretePts, 'rgba(186, 230, 253, 0.38)', '#38bdf8', 1.2);
 
-    // 3. Highlight requested category & place Area Badges DOWN below trench (per User Request 4)
+    // 3. Highlight requested category & place Area Badges DOWN below trench with soft light colors (per รูป 4)
     const pillBottomY = sec.elevs.ELEV_BOTTOM_OUTLINE + 0.10;
 
     if (categoryKey === 'overview') {
-        if (sec.areas.stripping > 0) fillPoly(sec.polys.polyStripping, 'rgba(245, 158, 11, 0.4)', '#d97706', 1.5);
-        if (sec.areas.compacted > 0) fillPoly(sec.polys.polyCompacted, 'rgba(20, 184, 166, 0.4)', '#0d9488', 1.5);
-        if (sec.areas.excavation > 0) fillPoly(sec.polys.polyExcavation, 'rgba(249, 115, 22, 0.4)', '#ea580c', 1.5);
-        fillPoly(sec.polys.polyManualLeft, 'rgba(168, 85, 247, 0.4)', '#9333ea', 1.5);
-        fillPoly(sec.polys.polyManualRight, 'rgba(168, 85, 247, 0.4)', '#9333ea', 1.5);
-        if (sec.params.ts > 0) fillPoly(sec.polys.subbasePts, 'rgba(125, 211, 252, 0.55)', '#0284c7', 1.2);
-        fillPoly(sec.polys.concretePts, 'rgba(56, 189, 248, 0.45)', '#0284c7', 1.8);
+        if (sec.areas.stripping > 0) fillPoly(sec.polys.polyStripping, 'rgba(253, 230, 138, 0.35)', '#f59e0b', 1.3);
+        if (sec.areas.compacted > 0) fillPoly(sec.polys.polyCompacted, 'rgba(153, 246, 228, 0.35)', '#14b8a6', 1.3);
+        if (sec.areas.excavation > 0) fillPoly(sec.polys.polyExcavation, 'rgba(254, 215, 170, 0.38)', '#f97316', 1.3);
+        fillPoly(sec.polys.polyManualLeft, 'rgba(233, 213, 255, 0.38)', '#a855f7', 1.3);
+        fillPoly(sec.polys.polyManualRight, 'rgba(233, 213, 255, 0.38)', '#a855f7', 1.3);
+        if (sec.params.ts > 0) fillPoly(sec.polys.subbasePts, 'rgba(186, 230, 253, 0.45)', '#38bdf8', 1.2);
+        fillPoly(sec.polys.concretePts, 'rgba(186, 230, 253, 0.38)', '#0284c7', 1.5);
     } else if (categoryKey === 'stripping') {
         if (sec.areas.stripping > 0) {
-            fillPoly(sec.polys.polyStripping, 'rgba(245, 158, 11, 0.55)', '#d97706', 2.5);
+            fillPoly(sec.polys.polyStripping, 'rgba(253, 230, 138, 0.45)', '#f59e0b', 2);
             const leaderY = (sec.params.ngl + sec.elevs.topsoilElev) / 2;
-            drawAreaPill(sec.polys.polyStripping, `ขุดลอกหน้าดิน ${sec.areas.stripping.toFixed(3)} m²`, '#ffffff', '#78350f', '#f59e0b', 0, pillBottomY, { x: 0, elev: leaderY });
+            drawAreaPill(sec.polys.polyStripping, `ขุดลอกหน้าดิน ${sec.areas.stripping.toFixed(3)} m²`, '#92400e', '#fef3c7', '#f59e0b', 0, pillBottomY, { x: 0, elev: leaderY });
         }
     } else if (categoryKey === 'compacted') {
         if (sec.areas.compacted > 0) {
-            fillPoly(sec.polys.polyCompacted, 'rgba(20, 184, 166, 0.55)', '#0d9488', 2.5);
+            fillPoly(sec.polys.polyCompacted, 'rgba(153, 246, 228, 0.45)', '#14b8a6', 2);
             const leaderY = (sec.elevs.ELEV_SUBBASE_BOT + sec.elevs.topsoilElev) / 2;
-            drawAreaPill(sec.polys.polyCompacted, `ดินถมบดอัดแน่น 85% ${sec.areas.compacted.toFixed(3)} m²`, '#ffffff', '#134e4a', '#14b8a6', 0, pillBottomY, { x: 0, elev: leaderY });
+            drawAreaPill(sec.polys.polyCompacted, `ดินถมบดอัดแน่น 85% ${sec.areas.compacted.toFixed(3)} m²`, '#115e59', '#ccfbf1', '#14b8a6', 0, pillBottomY, { x: 0, elev: leaderY });
         }
     } else if (categoryKey === 'excavation') {
         if (sec.areas.excavation > 0) {
-            fillPoly(sec.polys.polyExcavation, 'rgba(249, 115, 22, 0.55)', '#ea580c', 2.5);
+            fillPoly(sec.polys.polyExcavation, 'rgba(254, 215, 170, 0.45)', '#f97316', 2);
             const leaderY = (sec.elevs.topsoilElev + sec.elevs.ELEV_SUBBASE_BOT) / 2;
-            drawAreaPill(sec.polys.polyExcavation, `ดินขุด ${sec.areas.excavation.toFixed(3)} m²`, '#ffffff', '#7c2d12', '#f97316', 0, pillBottomY, { x: 0, elev: leaderY });
+            drawAreaPill(sec.polys.polyExcavation, `ดินขุด ${sec.areas.excavation.toFixed(3)} m²`, '#9a3412', '#ffedd5', '#f97316', 0, pillBottomY, { x: 0, elev: leaderY });
         }
     } else if (categoryKey === 'manual') {
-        fillPoly(sec.polys.polyManualLeft, 'rgba(168, 85, 247, 0.55)', '#9333ea', 2);
-        fillPoly(sec.polys.polyManualRight, 'rgba(168, 85, 247, 0.55)', '#9333ea', 2);
-        // Move both left and right berm badges down below trench with leader lines (per Screenshot 230203.png)
+        fillPoly(sec.polys.polyManualLeft, 'rgba(233, 213, 255, 0.45)', '#a855f7', 1.8);
+        fillPoly(sec.polys.polyManualRight, 'rgba(233, 213, 255, 0.45)', '#a855f7', 1.8);
         const leftBermX = -Math.max(sec.xs.X_BERM_LEFT * 0.95, 0.95);
         const rightBermX = Math.max(sec.xs.X_BERM_RIGHT * 0.95, 0.95);
         const bermLeaderY = (sec.elevs.ELEV_TOP_RIM + sec.elevs.ELEV_SUBBASE_BOT) / 2;
-        drawAreaPill(sec.polys.polyManualLeft, `ถมแรงคน(ซ้าย) ${sec.areas.manualLeft.toFixed(3)} m²`, '#ffffff', '#581c87', '#a855f7', leftBermX, pillBottomY, { x: -sec.xs.X_BERM_LEFT * 0.65, elev: bermLeaderY });
-        drawAreaPill(sec.polys.polyManualRight, `ถมแรงคน(ขวา) ${sec.areas.manualRight.toFixed(3)} m²`, '#ffffff', '#581c87', '#a855f7', rightBermX, pillBottomY, { x: sec.xs.X_BERM_RIGHT * 0.65, elev: bermLeaderY });
+        drawAreaPill(sec.polys.polyManualLeft, `ถมแรงคน(ซ้าย) ${sec.areas.manualLeft.toFixed(3)} m²`, '#6b21a8', '#f3e8ff', '#a855f7', leftBermX, pillBottomY, { x: -sec.xs.X_BERM_LEFT * 0.65, elev: bermLeaderY });
+        drawAreaPill(sec.polys.polyManualRight, `ถมแรงคน(ขวา) ${sec.areas.manualRight.toFixed(3)} m²`, '#6b21a8', '#f3e8ff', '#a855f7', rightBermX, pillBottomY, { x: sec.xs.X_BERM_RIGHT * 0.65, elev: bermLeaderY });
     } else if (categoryKey === 'concrete') {
-        fillPoly(sec.polys.concretePts, 'rgba(56, 189, 248, 0.6)', '#0284c7', 2.5);
-        // Move concrete badge down below trench with leader line (per Screenshot 230059.png)
-        drawAreaPill(sec.polys.concretePts, `คอนกรีต U-Shape ${sec.areas.concrete.toFixed(3)} m²`, '#ffffff', '#0c4a6e', '#38bdf8', 0, pillBottomY, { x: 0, elev: sec.elevs.ELEV_CANAL_INVERT - sec.params.tb / 2 });
+        fillPoly(sec.polys.concretePts, 'rgba(186, 230, 253, 0.50)', '#0284c7', 2);
+        drawAreaPill(sec.polys.concretePts, `คอนกรีต U-Shape ${sec.areas.concrete.toFixed(3)} m²`, '#075985', '#e0f2fe', '#38bdf8', 0, pillBottomY, { x: 0, elev: sec.elevs.ELEV_CANAL_INVERT - sec.params.tb / 2 });
     } else if (categoryKey === 'subbase') {
         if (sec.params.ts > 0) {
-            fillPoly(sec.polys.subbasePts, 'rgba(125, 211, 252, 0.75)', '#0369a1', 2.5);
-            drawAreaPill(sec.polys.subbasePts, `คอนกรีตหยาบ ${sec.areas.subbase.toFixed(3)} m²`, '#ffffff', '#075985', '#7dd3fc', 0, pillBottomY, { x: 0, elev: sec.elevs.ELEV_SUBBASE_BOT + sec.params.ts / 2 });
+            fillPoly(sec.polys.subbasePts, 'rgba(186, 230, 253, 0.55)', '#0284c7', 2);
+            drawAreaPill(sec.polys.subbasePts, `คอนกรีตหยาบ ${sec.areas.subbase.toFixed(3)} m²`, '#0369a1', '#e0f2fe', '#38bdf8', 0, pillBottomY, { x: 0, elev: sec.elevs.ELEV_SUBBASE_BOT + sec.params.ts / 2 });
         }
     }
 
@@ -3371,71 +4274,88 @@ function recalculateSectionNumbersByCanalLine(rowsArr) {
 }
 
 // ชุดสีพื้นหลังของแต่ละ "ช่วงคูส่งน้ำ" (sectionNo) เพื่อให้เกิดความแตกต่างชัดเจน
-// รอบ 60: เปลี่ยนพื้นหลังแถวจากโทนมืด (ทึบ/เข้ม) เป็นโทนอ่อนโปร่ง (พาสเทล) ให้เข้ากับธีมสว่าง
 const SECTION_COLOR_PALETTE = [
     {
         name: 'sky',
+        borderHex: '#0284c7',
+        secBg: 'rgba(2, 132, 199, 0.13)',
+        secBorder: 'rgba(2, 132, 199, 0.45)',
         rowCls: 'bg-sky-950/40 hover:bg-sky-900/55 transition cursor-pointer',
         selectedCls: 'bg-sky-900/75 ring-2 ring-inset ring-cyan-400 font-medium shadow-lg transition cursor-pointer',
-        rowStyle: 'background-color: rgba(224, 242, 254, 0.65);',
-        selectedStyle: 'background-color: rgba(186, 230, 253, 0.88);',
-        leftBorderCls: 'border-l-4 border-l-sky-400',
-        secInputCls: 'bg-sky-500/25 text-sky-200 ring-1 ring-inset ring-sky-400/70 font-extrabold',
+        rowStyle: '--ew-sec-color: #0284c7; --ew-sec-bg: rgba(2, 132, 199, 0.13); --ew-sec-border: rgba(2, 132, 199, 0.45); background-color: rgba(12, 74, 110, 0.34);',
+        selectedStyle: '--ew-sec-color: #0284c7; --ew-sec-bg: rgba(2, 132, 199, 0.13); --ew-sec-border: rgba(2, 132, 199, 0.45); background-color: rgba(3, 105, 161, 0.48);',
+        leftBorderCls: 'ew-seq-col-cell border-l-4 border-l-sky-400',
+        secInputCls: 'ew-sec-badge ew-sec-sky font-extrabold',
         printBg: '#f0f9ff',
         printText: '#0369a1'
     },
     {
         name: 'emerald',
+        borderHex: '#059669',
+        secBg: 'rgba(5, 150, 105, 0.13)',
+        secBorder: 'rgba(5, 150, 105, 0.45)',
         rowCls: 'bg-emerald-950/40 hover:bg-emerald-900/55 transition cursor-pointer',
         selectedCls: 'bg-emerald-900/75 ring-2 ring-inset ring-cyan-400 font-medium shadow-lg transition cursor-pointer',
-        rowStyle: 'background-color: rgba(209, 250, 229, 0.65);',
-        selectedStyle: 'background-color: rgba(167, 243, 208, 0.88);',
-        leftBorderCls: 'border-l-4 border-l-emerald-400',
-        secInputCls: 'bg-emerald-500/25 text-emerald-200 ring-1 ring-inset ring-emerald-400/70 font-extrabold',
+        rowStyle: '--ew-sec-color: #059669; --ew-sec-bg: rgba(5, 150, 105, 0.13); --ew-sec-border: rgba(5, 150, 105, 0.45); background-color: rgba(6, 78, 59, 0.34);',
+        selectedStyle: '--ew-sec-color: #059669; --ew-sec-bg: rgba(5, 150, 105, 0.13); --ew-sec-border: rgba(5, 150, 105, 0.45); background-color: rgba(4, 120, 87, 0.48);',
+        leftBorderCls: 'ew-seq-col-cell border-l-4 border-l-emerald-400',
+        secInputCls: 'ew-sec-badge ew-sec-emerald font-extrabold',
         printBg: '#ecfdf5',
         printText: '#047857'
     },
     {
         name: 'amber',
+        borderHex: '#d97706',
+        secBg: 'rgba(217, 119, 6, 0.14)',
+        secBorder: 'rgba(217, 119, 6, 0.48)',
         rowCls: 'bg-amber-950/35 hover:bg-amber-900/50 transition cursor-pointer',
         selectedCls: 'bg-amber-900/70 ring-2 ring-inset ring-cyan-400 font-medium shadow-lg transition cursor-pointer',
-        rowStyle: 'background-color: rgba(255, 247, 237, 0.70);',
-        selectedStyle: 'background-color: rgba(253, 230, 138, 0.85);',
-        leftBorderCls: 'border-l-4 border-l-amber-400',
-        secInputCls: 'bg-amber-500/25 text-amber-200 ring-1 ring-inset ring-amber-400/70 font-extrabold',
+        rowStyle: '--ew-sec-color: #d97706; --ew-sec-bg: rgba(217, 119, 6, 0.14); --ew-sec-border: rgba(217, 119, 6, 0.48); background-color: rgba(120, 53, 15, 0.30);',
+        selectedStyle: '--ew-sec-color: #d97706; --ew-sec-bg: rgba(217, 119, 6, 0.14); --ew-sec-border: rgba(217, 119, 6, 0.48); background-color: rgba(180, 83, 9, 0.45);',
+        leftBorderCls: 'ew-seq-col-cell border-l-4 border-l-amber-400',
+        secInputCls: 'ew-sec-badge ew-sec-amber font-extrabold',
         printBg: '#fffbeb',
         printText: '#b45309'
     },
     {
         name: 'purple',
+        borderHex: '#7c3aed',
+        secBg: 'rgba(124, 58, 237, 0.13)',
+        secBorder: 'rgba(124, 58, 237, 0.45)',
         rowCls: 'bg-purple-950/40 hover:bg-purple-900/55 transition cursor-pointer',
         selectedCls: 'bg-purple-900/75 ring-2 ring-inset ring-cyan-400 font-medium shadow-lg transition cursor-pointer',
-        rowStyle: 'background-color: rgba(250, 245, 255, 0.68);',
-        selectedStyle: 'background-color: rgba(233, 213, 254, 0.88);',
-        leftBorderCls: 'border-l-4 border-l-purple-400',
-        secInputCls: 'bg-purple-500/25 text-purple-200 ring-1 ring-inset ring-purple-400/70 font-extrabold',
+        rowStyle: '--ew-sec-color: #7c3aed; --ew-sec-bg: rgba(124, 58, 237, 0.13); --ew-sec-border: rgba(124, 58, 237, 0.45); background-color: rgba(88, 28, 135, 0.32);',
+        selectedStyle: '--ew-sec-color: #7c3aed; --ew-sec-bg: rgba(124, 58, 237, 0.13); --ew-sec-border: rgba(124, 58, 237, 0.45); background-color: rgba(126, 34, 206, 0.46);',
+        leftBorderCls: 'ew-seq-col-cell border-l-4 border-l-purple-400',
+        secInputCls: 'ew-sec-badge ew-sec-purple font-extrabold',
         printBg: '#faf5ff',
         printText: '#7e22ce'
     },
     {
         name: 'rose',
+        borderHex: '#e11d48',
+        secBg: 'rgba(225, 29, 72, 0.13)',
+        secBorder: 'rgba(225, 29, 72, 0.45)',
         rowCls: 'bg-rose-950/35 hover:bg-rose-900/50 transition cursor-pointer',
         selectedCls: 'bg-rose-900/70 ring-2 ring-inset ring-cyan-400 font-medium shadow-lg transition cursor-pointer',
-        rowStyle: 'background-color: rgba(255, 241, 242, 0.68);',
-        selectedStyle: 'background-color: rgba(254, 205, 211, 0.85);',
-        leftBorderCls: 'border-l-4 border-l-rose-400',
-        secInputCls: 'bg-rose-500/25 text-rose-200 ring-1 ring-inset ring-rose-400/70 font-extrabold',
+        rowStyle: '--ew-sec-color: #e11d48; --ew-sec-bg: rgba(225, 29, 72, 0.13); --ew-sec-border: rgba(225, 29, 72, 0.45); background-color: rgba(136, 19, 55, 0.30);',
+        selectedStyle: '--ew-sec-color: #e11d48; --ew-sec-bg: rgba(225, 29, 72, 0.13); --ew-sec-border: rgba(225, 29, 72, 0.45); background-color: rgba(190, 18, 60, 0.45);',
+        leftBorderCls: 'ew-seq-col-cell border-l-4 border-l-rose-400',
+        secInputCls: 'ew-sec-badge ew-sec-rose font-extrabold',
         printBg: '#fff1f2',
         printText: '#be123c'
     },
     {
         name: 'indigo',
+        borderHex: '#4f46e5',
+        secBg: 'rgba(79, 70, 229, 0.13)',
+        secBorder: 'rgba(79, 70, 229, 0.45)',
         rowCls: 'bg-indigo-950/40 hover:bg-indigo-900/55 transition cursor-pointer',
         selectedCls: 'bg-indigo-900/75 ring-2 ring-inset ring-cyan-400 font-medium shadow-lg transition cursor-pointer',
-        rowStyle: 'background-color: rgba(238, 242, 255, 0.68);',
-        selectedStyle: 'background-color: rgba(199, 210, 254, 0.88);',
-        leftBorderCls: 'border-l-4 border-l-indigo-400',
-        secInputCls: 'bg-indigo-500/25 text-indigo-200 ring-1 ring-inset ring-indigo-400/70 font-extrabold',
+        rowStyle: '--ew-sec-color: #4f46e5; --ew-sec-bg: rgba(79, 70, 229, 0.13); --ew-sec-border: rgba(79, 70, 229, 0.45); background-color: rgba(49, 46, 129, 0.34);',
+        selectedStyle: '--ew-sec-color: #4f46e5; --ew-sec-bg: rgba(79, 70, 229, 0.13); --ew-sec-border: rgba(79, 70, 229, 0.45); background-color: rgba(67, 56, 202, 0.48);',
+        leftBorderCls: 'ew-seq-col-cell border-l-4 border-l-indigo-400',
+        secInputCls: 'ew-sec-badge ew-sec-indigo font-extrabold',
         printBg: '#eef2ff',
         printText: '#4338ca'
     }
@@ -3466,7 +4386,7 @@ function createWorkspaceSnapshot(actionLabel = 'แก้ไขข้อมู�
     return {
         label: actionLabel,
         boqRows: cloneBoqRows(boqRows),
-        masterBoqRows: cloneBoqRows(masterBoqRows),
+        masterBoqRows: cloneBoqRows(hiddenStationCategories.size === 0 ? boqRows : masterBoqRows),
         hiddenStationCategories: Array.from(hiddenStationCategories),
         selectedRowIndex: selectedRowIndex,
         lastSubdivideStepLabel: lastSubdivideStepLabel,
@@ -3491,11 +4411,11 @@ function updateUndoRedoButtonsUI() {
         if (!btn) return;
         btn.disabled = !canUndo;
         btn.title = canUndo
-            ? `ยกเลิก: "${lastUndoLabel}" (เหลือ ${undoStack.length} ขั้นตอน • Ctrl+Z)`
-            : 'ไม่มีขั้นตอนก่อนหน้าให้ยกเลิก (Ctrl+Z)';
+            ? `Undo: "${lastUndoLabel}" (ย้อนทีละ 1 ครั้ง • เหลือ ${undoStack.length} ขั้นตอน • Ctrl+Z)`
+            : 'Undo: ไม่มีขั้นตอนก่อนหน้าให้ย้อนกลับ (Ctrl+Z)';
         btn.innerHTML = canUndo
-            ? `<span>↩ ยกเลิก (${undoStack.length})</span>`
-            : `<span>↩ ยกเลิก</span>`;
+            ? `<span>↩ Undo (${undoStack.length})</span>`
+            : `<span>↩ Undo</span>`;
     });
 
     ['btnHeaderRedo', 'btnRedoAction'].forEach(id => {
@@ -3503,11 +4423,11 @@ function updateUndoRedoButtonsUI() {
         if (!btn) return;
         btn.disabled = !canRedo;
         btn.title = canRedo
-            ? `กลับการทำงาน: "${lastRedoLabel}" (เหลือ ${redoStack.length} ขั้นตอน • Ctrl+Y)`
-            : 'ไม่มีขั้นตอนถัดไปให้ทำซ้ำ (Ctrl+Y)';
+            ? `Redo: "${lastRedoLabel}" (ทำซ้ำทีละ 1 ครั้ง • เหลือ ${redoStack.length} ขั้นตอน • Ctrl+Y)`
+            : 'Redo: ไม่มีขั้นตอนถัดไปให้ทำซ้ำ (Ctrl+Y)';
         btn.innerHTML = canRedo
-            ? `<span>↪ กลับการทำงาน (${redoStack.length})</span>`
-            : `<span>↪ กลับการทำงาน</span>`;
+            ? `<span>↪ Redo (${redoStack.length})</span>`
+            : `<span>↪ Redo</span>`;
     });
 }
 
@@ -3558,29 +4478,29 @@ function applyWorkspaceSnapshotState(snap) {
 }
 
 function performWorkspaceUndo() {
+    if (typeof document !== 'undefined' && document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('table-cell-input')) {
+        document.activeElement.blur();
+    }
     if (!undoStack.length) {
-        showToast('ไม่มีรายการก่อนหน้าให้ยกเลิก (Undo)', 'amber');
         return;
     }
     const targetSnap = undoStack.pop();
     redoStack.push(createWorkspaceSnapshot(targetSnap.label));
     applyWorkspaceSnapshotState(targetSnap);
     updateUndoRedoButtonsUI();
-    showBanner(`↩ ยกเลิกการทำงาน: "${targetSnap.label}" เรียบร้อยแล้ว (ตารางมี ${boqRows.length} ช่วง กม.)`, 'cyan');
-    showToast(`↩ ยกเลิก: ${targetSnap.label}`, 'cyan');
 }
 
 function performWorkspaceRedo() {
+    if (typeof document !== 'undefined' && document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('table-cell-input')) {
+        document.activeElement.blur();
+    }
     if (!redoStack.length) {
-        showToast('ไม่มีรายการถัดไปให้กลับการทำงาน (Redo)', 'amber');
         return;
     }
     const targetSnap = redoStack.pop();
     undoStack.push(createWorkspaceSnapshot(targetSnap.label));
     applyWorkspaceSnapshotState(targetSnap);
     updateUndoRedoButtonsUI();
-    showBanner(`↪ กลับการทำงาน (Redo): "${targetSnap.label}" เรียบร้อยแล้ว (ตารางมี ${boqRows.length} ช่วง กม.)`, 'cyan');
-    showToast(`↪ กลับการทำงาน: ${targetSnap.label}`, 'cyan');
 }
 
 // แปลงข้อความหมายเหตุ (คอลัมน์ T) กลับเป็น Tags เพื่อให้ระบบตรวจสอบสถานะปุ่มแบ่ง/ลบ กม. ได้ทันทีเมื่อเปิดเว็บหรือโหลดไฟล์ใหม่
@@ -4000,7 +4920,6 @@ function syncSplitButtonsStatusUI() {
     const counts = getSplitStationCountsInMaster();
     const stepInputVal = parseFloat(document.getElementById('inputSubdivideStep')?.value) || counts.stepLabel || 25;
 
-    // 1. บล็อกที่ 1: ปุ่มแบ่ง/ลบ กม. ทุกๆ X เมตร (#btnSubdivideStations), ปุ่มแสดง/ซ่อน (#btnRemoveSubdividedStations), และป้ายจำนวนจุด (#badgeCountStepStations)
     const btnSub = document.getElementById('btnSubdivideStations');
     const btnVisSub = document.getElementById('btnRemoveSubdividedStations');
     const badgeStep = document.getElementById('badgeCountStepStations');
@@ -4010,33 +4929,33 @@ function syncSplitButtonsStatusUI() {
     }
     if (btnSub) {
         if (counts.step > 0) {
-            btnSub.className = 'py-1 px-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] ring-1 ring-rose-300 transition truncate';
+            btnSub.className = 'ew-soft-btn ew-soft-rose w-full justify-center truncate';
             btnSub.innerHTML = `🗑 ลบ กม. ที่แบ่ง (${counts.step})`;
             btnSub.title = `ตรวจพบจุดแบ่งทุกๆ ${counts.stepLabel} เมตร จำนวน ${counts.step} จุด • คลิกเพื่อลบจุด กม. ที่แบ่งออก`;
         } else {
-            btnSub.className = 'py-1 px-2 rounded-lg bg-cyan-600/90 hover:bg-cyan-500 text-white font-semibold text-[11px] transition truncate';
+            btnSub.className = 'ew-soft-btn ew-soft-cyan w-full justify-center truncate';
             btnSub.innerHTML = `✂️ แบ่ง กม. ทุกๆ ${stepInputVal} เมตร`;
             btnSub.title = `แบ่งช่วง กม. ออกเป็นทุกๆ ${stepInputVal} เมตร`;
         }
     }
     if (btnVisSub) {
         if (counts.step === 0) {
-            btnVisSub.className = 'py-1 px-2 rounded-lg bg-slate-800/70 text-slate-400 border border-slate-700/80 text-[11px] font-medium transition opacity-75 truncate';
+            btnVisSub.className = 'ew-soft-btn ew-soft-muted w-full justify-center truncate';
             btnVisSub.innerHTML = `👁️ แสดง/ซ่อน กม. ที่แบ่ง`;
             btnVisSub.title = 'ยังไม่มีจุด กม. ที่แบ่งทุกๆ X เมตรในตาราง';
         } else if (isStepHid) {
-            btnVisSub.className = 'py-1 px-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white border border-amber-300 text-[11px] font-bold ring-1 ring-amber-300 transition truncate';
+            btnVisSub.className = 'ew-soft-btn ew-soft-amber w-full justify-center truncate';
             btnVisSub.innerHTML = `👁️ แสดง กม. (${counts.step})`;
             btnVisSub.title = 'คลิกเพื่อแสดงจุด กม. ที่แบ่งทุกๆ X เมตร กลับมาในตาราง';
         } else {
-            btnVisSub.className = 'py-1 px-2 rounded-lg bg-indigo-950/90 hover:bg-indigo-800 text-indigo-200 border border-indigo-500/50 text-[11px] font-semibold transition truncate';
+            btnVisSub.className = 'ew-soft-btn ew-soft-indigo w-full justify-center truncate';
             btnVisSub.innerHTML = `👁️ ซ่อน กม. (${counts.step})`;
             btnVisSub.title = 'คลิกเพื่อซ่อนจุด กม. ที่แบ่งทุกๆ X เมตร ชั่วคราวโดยไม่ลบข้อมูล';
         }
     }
 
-    // 2. บล็อกที่ 2: ปุ่มแทรก/ลบ กม. ดินเดิม (#btnInsertDigitizerStations), ปุ่มแสดง/ซ่อน (#btnRemoveDigitizerStations), และป้ายจำนวนจุด (#badgeCountNglStations)
     const btnNgl = document.getElementById('btnInsertDigitizerStations');
+    const btnDelNglLine = document.getElementById('btnDeleteDigitizerStationsByLine');
     const btnVisNgl = document.getElementById('btnRemoveDigitizerStations');
     const badgeNgl = document.getElementById('badgeCountNglStations');
     const isNglHid = hiddenStationCategories.has('ngl');
@@ -4045,100 +4964,72 @@ function syncSplitButtonsStatusUI() {
     }
     if (btnNgl) {
         if (counts.ngl > 0) {
-            btnNgl.className = 'py-1 px-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] ring-1 ring-rose-300 transition truncate';
+            btnNgl.className = 'ew-soft-btn ew-soft-rose w-full justify-center truncate';
             btnNgl.innerHTML = `🗑 ลบ กม. ที่แบ่ง (${counts.ngl})`;
             btnNgl.title = `ตรวจพบจุดหักดินเดิมในตาราง จำนวน ${counts.ngl} จุด • คลิกเพื่อลบออก`;
         } else {
-            btnNgl.className = 'py-1 px-2 rounded-lg bg-emerald-600/85 hover:bg-emerald-500 text-white font-semibold text-[11px] transition truncate';
+            btnNgl.className = 'ew-soft-btn ew-soft-emerald w-full justify-center truncate';
             btnNgl.innerHTML = `➕ แทรก กม. ดินเดิม`;
-            btnNgl.title = 'แทรกจุดหักดินเดิมจาก XY Digitizer เข้ามาในตารางพร้อมใส่หมายเหตุ จุดหักดินเดิม';
+            btnNgl.title = 'แทรกจุดหักดินเดิมเข้ามาในตารางพร้อมใส่หมายเหตุ จุดหักดินเดิม';
         }
+    }
+    if (btnDelNglLine) {
+        btnDelNglLine.className = 'ew-soft-btn ew-soft-rose w-full justify-center truncate';
+        btnDelNglLine.innerHTML = `🗂 เลือกรายสาย`;
     }
     if (btnVisNgl) {
         if (counts.ngl === 0) {
-            btnVisNgl.className = 'py-1 px-2 rounded-lg bg-slate-800/70 text-slate-400 border border-slate-700/80 text-[11px] font-medium transition opacity-75 truncate';
+            btnVisNgl.className = 'ew-soft-btn ew-soft-muted w-full justify-center truncate';
             btnVisNgl.innerHTML = `👁️ แสดง/ซ่อน กม. ดินเดิม`;
             btnVisNgl.title = 'ยังไม่มีจุดหักดินเดิมที่แทรกไว้ในตาราง';
         } else if (isNglHid) {
-            btnVisNgl.className = 'py-1 px-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white border border-amber-300 text-[11px] font-bold ring-1 ring-amber-300 transition truncate';
+            btnVisNgl.className = 'ew-soft-btn ew-soft-amber w-full justify-center truncate';
             btnVisNgl.innerHTML = `👁️ แสดง กม. (${counts.ngl})`;
             btnVisNgl.title = 'คลิกเพื่อแสดงจุดหักดินเดิมกลับมาในตาราง';
         } else {
-            btnVisNgl.className = 'py-1 px-2 rounded-lg bg-indigo-950/90 hover:bg-indigo-800 text-indigo-200 border border-indigo-500/50 text-[11px] font-semibold transition truncate';
+            btnVisNgl.className = 'ew-soft-btn ew-soft-indigo w-full justify-center truncate';
             btnVisNgl.innerHTML = `👁️ ซ่อน กม. (${counts.ngl})`;
             btnVisNgl.title = 'คลิกเพื่อซ่อนจุดหักดินเดิมชั่วคราวโดยไม่ลบข้อมูล';
         }
     }
 
-    // 2.5 บล็อกที่ 3: อัปเดตจำนวนช่วง กม. บนป้าย #badgeBoqRowCountInfo
     const badgeRowCount = document.getElementById('badgeBoqRowCountInfo');
     if (badgeRowCount) {
         badgeRowCount.innerText = `${boqRows.length} ช่วง กม.`;
     }
 
-    // 3. ปุ่มรวมค่างานเป็น 0 (#btnSplitZeroAll) & ปุ่มแสดง/ซ่อนรวม (#btnRemoveZeroAll)
-    const btnZeroAll = document.getElementById('btnSplitZeroAll');
-    const btnVisZeroAll = document.getElementById('btnRemoveZeroAll');
-    const allZeroKeys = ['zero_stripping', 'zero_compacted', 'zero_excavation', 'zero_manual'];
-    const isAllZeroHidden = counts.zero_all > 0 && allZeroKeys.every(k => counts[k] === 0 || hiddenStationCategories.has(k));
-
-    if (btnZeroAll) {
-        if (counts.zero_all > 0) {
-            btnZeroAll.className = 'px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] shadow ring-2 ring-rose-400/50 transition';
-            btnZeroAll.innerHTML = `🗑 ลบ กม. ที่แบ่ง ค่างานเป็น 0 (ทั้งหมด • ${counts.zero_all} จุด)`;
-            btnZeroAll.title = 'คลิกเพื่อลบจุด กม. ที่ค่างานดินเป็น 0 ทั้งหมดออกจากตาราง';
-        } else {
-            btnZeroAll.className = 'px-2.5 py-1 rounded-lg bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-[11px] shadow transition';
-            btnZeroAll.innerHTML = `⚡ แบ่ง กม. ค่างานเป็น 0 (ครบทุกงาน)`;
-            btnZeroAll.title = 'แบ่งจุด กม. ณ ตำแหน่งที่พื้นที่งานดินเปลี่ยนผ่านค่า 0 ครบทุกหมวดงาน';
-        }
-    }
-    if (btnVisZeroAll) {
-        if (counts.zero_all === 0) {
-            btnVisZeroAll.className = 'px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 font-medium text-[11px] transition opacity-75';
-            btnVisZeroAll.innerHTML = `👁 แสดง/ซ่อน กม. ค่างานเป็น 0 (ทั้งหมด)`;
-        } else if (isAllZeroHidden) {
-            btnVisZeroAll.className = 'px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white border border-amber-300 font-bold text-[11px] ring-2 ring-amber-400/50 transition';
-            btnVisZeroAll.innerHTML = `👁 แสดง กม. ค่างานเป็น 0 (ซ่อน ${counts.zero_all} จุด)`;
-        } else {
-            btnVisZeroAll.className = 'px-2.5 py-1 rounded-lg bg-indigo-950/90 hover:bg-indigo-800 text-indigo-200 border border-indigo-500/50 font-semibold text-[11px] transition';
-            btnVisZeroAll.innerHTML = `👁 ซ่อน กม. ค่างานเป็น 0 (ทั้งหมด • ${counts.zero_all} จุด)`;
-        }
-    }
-
-    // 4. ปุ่มแยกตามหมวดงาน 4 หมวด
     const zeroConfigs = [
         {
             key: 'zero_stripping',
             splitId: 'btnSplitZeroStripping',
             visId: 'btnRemoveZeroStripping',
             badgeId: 'badgeCountZeroStripping',
-            defaultSplitCls: 'py-1 px-2 rounded-lg bg-amber-600/80 hover:bg-amber-500 text-white font-semibold text-[11px] transition',
-            badgeCls: 'text-[10px] px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-700/50'
+            defaultSplitCls: 'ew-soft-btn ew-soft-amber w-full justify-center truncate',
+            badgeCls: 'ew-badge ew-badge-amber'
         },
         {
             key: 'zero_compacted',
             splitId: 'btnSplitZeroCompacted',
             visId: 'btnRemoveZeroCompacted',
             badgeId: 'badgeCountZeroCompacted',
-            defaultSplitCls: 'py-1 px-2 rounded-lg bg-teal-600/80 hover:bg-teal-500 text-white font-semibold text-[11px] transition',
-            badgeCls: 'text-[10px] px-1.5 py-0.5 rounded bg-teal-950 text-teal-300 border border-teal-700/50'
+            defaultSplitCls: 'ew-soft-btn ew-soft-teal w-full justify-center truncate',
+            badgeCls: 'ew-badge ew-badge-teal'
         },
         {
             key: 'zero_excavation',
             splitId: 'btnSplitZeroExcavation',
             visId: 'btnRemoveZeroExcavation',
             badgeId: 'badgeCountZeroExcavation',
-            defaultSplitCls: 'py-1 px-2 rounded-lg bg-orange-600/80 hover:bg-orange-500 text-white font-semibold text-[11px] transition',
-            badgeCls: 'text-[10px] px-1.5 py-0.5 rounded bg-orange-950 text-orange-300 border border-orange-700/50'
+            defaultSplitCls: 'ew-soft-btn ew-soft-orange w-full justify-center truncate',
+            badgeCls: 'ew-badge ew-badge-orange'
         },
         {
             key: 'zero_manual',
             splitId: 'btnSplitZeroManualFill',
             visId: 'btnRemoveZeroManualFill',
             badgeId: 'badgeCountZeroManual',
-            defaultSplitCls: 'py-1 px-2 rounded-lg bg-purple-600/80 hover:bg-purple-500 text-white font-semibold text-[11px] transition',
-            badgeCls: 'text-[10px] px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-700/50'
+            defaultSplitCls: 'ew-soft-btn ew-soft-purple w-full justify-center truncate',
+            badgeCls: 'ew-badge ew-badge-purple'
         }
     ];
 
@@ -4155,7 +5046,7 @@ function syncSplitButtonsStatusUI() {
         }
         if (elSplit) {
             if (cnt > 0) {
-                elSplit.className = 'py-1 px-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] ring-1 ring-rose-300 transition';
+                elSplit.className = 'ew-soft-btn ew-soft-rose w-full justify-center truncate';
                 elSplit.innerHTML = `🗑 ลบ กม. ที่แบ่ง (${cnt})`;
                 elSplit.title = `ตรวจพบจุดแบ่งในหมวดนี้ ${cnt} จุด • คลิกเพื่อลบจุด กม. ที่แบ่งออก`;
             } else {
@@ -4166,31 +5057,25 @@ function syncSplitButtonsStatusUI() {
         }
         if (elVis) {
             if (cnt === 0) {
-                elVis.className = 'py-1 px-2 rounded-lg bg-slate-800/70 text-slate-400 border border-slate-700/80 text-[11px] font-medium transition opacity-75';
+                elVis.className = 'ew-soft-btn ew-soft-muted w-full justify-center truncate';
                 elVis.innerHTML = `👁 แสดง/ซ่อน กม.`;
                 elVis.title = 'ยังไม่มีจุดแบ่งในหมวดนี้ให้แสดง/ซ่อน';
             } else if (isHid) {
-                elVis.className = 'py-1 px-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white border border-amber-300 text-[11px] font-bold ring-1 ring-amber-300 transition';
+                elVis.className = 'ew-soft-btn ew-soft-amber w-full justify-center truncate';
                 elVis.innerHTML = `👁 แสดง กม. (${cnt})`;
                 elVis.title = 'คลิกเพื่อแสดงจุด กม. หมวดนี้กลับมาในตาราง';
             } else {
-                elVis.className = 'py-1 px-2 rounded-lg bg-indigo-950/90 hover:bg-indigo-800 text-indigo-200 border border-indigo-500/50 text-[11px] font-semibold transition';
+                elVis.className = 'ew-soft-btn ew-soft-indigo w-full justify-center truncate';
                 elVis.innerHTML = `👁 ซ่อน กม. (${cnt})`;
-                elVis.title = 'คลิกเพื่อซ่อนจุด กม. หมวดนี้ชั่วคราว';
+                elVis.title = 'คลิกเพื่อซ่อนจุด กม. หมวดนี้ชั่วคราวโดยไม่ลบข้อมูล';
             }
         }
     });
-
-    if (typeof updateOriginalGroundTabBadgeUI === 'function') {
-        updateOriginalGroundTabBadgeUI();
-    }
     updateUndoRedoButtonsUI();
 }
 
 function updateZeroSplitCountBadges() {
-    const btnToggleCS = document.getElementById('btnToggleCrossSectionCollapse');
-if (btnToggleCS) btnToggleCS.innerHTML = '<span>ย่อ / ขยายส่วนที่ 1</span>';
-syncSplitButtonsStatusUI();
+    syncSplitButtonsStatusUI();
 }
 
 // ค้นหาจุด กม. ที่ค่างานดินแต่ละหมวดเปลี่ยนผ่านค่า 0 ภายในช่วงแถว r ([staStart, staEnd])
@@ -4346,7 +5231,7 @@ function deduplicateAndNormalizeSingleLineRows(lineRowsInput, includeDigitizerPo
         const key = Math.round(staVal * 100);
         const entry = stationTagsMap.get(key);
         if (!entry) return false;
-        return entry.tags.has('baseStart') || entry.tags.has('baseEnd') || entry.tags.has('base');
+        return entry.tags.has('baseStart') || entry.tags.has('baseEnd') || entry.tags.has('base') || entry.tags.has('userAdded');
     };
 
     uniqueIntervalRows.forEach(r => {
@@ -4720,6 +5605,7 @@ function removeStationsByOriginTag(tagPredicate, actionDescription, clearHiddenC
                 tb: Number(pRef.tb),
                 ts: Number(pRef.ts),
                 dt: Number(pRef.dt),
+                isUserAdded: endTagsArr.includes('userAdded'),
                 staStartTags: startTagsArr,
                 staEndTags: endTagsArr,
                 remark: buildRemarkFromTags(startTagsArr, endTagsArr, lastSubdivideStepLabel),
@@ -4950,7 +5836,7 @@ function drawLongitudinalProfile() {
     }
 
     // 1. เพิ่มเส้นแนวนอนตลอดกราฟ (Horizontal Grid & Baseline lines across entire graph per รูป 5)
-    ctxLongProfile.strokeStyle = '#1e293b';
+    ctxLongProfile.strokeStyle = 'rgba(203, 213, 225, 0.65)';
     ctxLongProfile.lineWidth = 1;
     for (let i = 0; i <= 4; i++) {
         const ev = minElev + (i / 4) * (maxElev - minElev);
@@ -4967,8 +5853,8 @@ function drawLongitudinalProfile() {
     }
 
     // Reference baseline horizontal line
-    ctxLongProfile.strokeStyle = '#334155';
-    ctxLongProfile.lineWidth = 1.5;
+    ctxLongProfile.strokeStyle = '#94a3b8';
+    ctxLongProfile.lineWidth = 1.2;
     ctxLongProfile.beginPath();
     ctxLongProfile.moveTo(padL, padT + plotH);
     ctxLongProfile.lineTo(w - padR, padT + plotH);
@@ -5082,37 +5968,32 @@ function drawLongitudinalProfile() {
         boxY = Math.max(padT + 2, Math.min(padT + plotH - boxH - 2, boxY));
 
         ctxLongProfile.save();
-        ctxLongProfile.shadowColor = 'rgba(0, 0, 0, 0.7)';
-        ctxLongProfile.shadowBlur = 10;
-        ctxLongProfile.fillStyle = 'rgba(15, 23, 42, 0.94)';
-        ctxLongProfile.strokeStyle = '#38bdf8';
-        ctxLongProfile.lineWidth = 1.3;
+        ctxLongProfile.shadowColor = 'rgba(15, 23, 42, 0.12)';
+        ctxLongProfile.shadowBlur = 8;
+        ctxLongProfile.fillStyle = 'rgba(255, 255, 255, 0.88)';
+        ctxLongProfile.strokeStyle = 'rgba(14, 165, 233, 0.65)';
+        ctxLongProfile.lineWidth = 1.2;
         ctxLongProfile.beginPath();
         ctxLongProfile?.roundRect?.(boxX, boxY, boxW, boxH, 6);
         ctxLongProfile.fill();
         ctxLongProfile.stroke();
         ctxLongProfile.shadowBlur = 0;
 
-        // Render texts inside floating HUD box
         ctxLongProfile.textAlign = 'left';
         ctxLongProfile.textBaseline = 'middle';
 
-        // กม. Header
         ctxLongProfile.font = 'bold 11px "Sarabun", sans-serif';
-        ctxLongProfile.fillStyle = '#ffffff';
+        ctxLongProfile.fillStyle = '#0f172a';
         ctxLongProfile.fillText(`📍 กม. ${formatMetersToStation(profileCursorStation)}`, boxX + 8, boxY + 12);
 
-        // NGL Level
         ctxLongProfile.font = 'bold 10.5px monospace';
-        ctxLongProfile.fillStyle = '#34d399';
+        ctxLongProfile.fillStyle = '#047857';
         ctxLongProfile.fillText(`● NGL: ${hasInterpNgl ? '+' + roundElev(interp.ngl).toFixed(2) + ' m' : '-'}`, boxX + 8, boxY + 28);
 
-        // BL Level
-        ctxLongProfile.fillStyle = '#38bdf8';
+        ctxLongProfile.fillStyle = '#0369a1';
         ctxLongProfile.fillText(`● BL:  +${roundElev(interp.bl).toFixed(2)} m`, boxX + 8, boxY + 43);
 
-        // TBL Level
-        ctxLongProfile.fillStyle = '#fb7185';
+        ctxLongProfile.fillStyle = '#be123c';
         ctxLongProfile.fillText(`● TBL: +${roundElev(interp.tbl).toFixed(2)} m`, boxX + 8, boxY + 58);
 
         ctxLongProfile.restore();
@@ -5264,10 +6145,15 @@ function resizeComparisonCanvases(resetViews = false) {
     const r1 = canvasCompareStart.parentElement.getBoundingClientRect();
     const r2 = canvasCompareEnd.parentElement.getBoundingClientRect();
     if (r1.width < 50 || r2.width < 50) return;
-    cmpStartW = Math.max(260, r1.width);
-    cmpStartH = Math.max(320, r1.height - 68);
-    cmpEndW = Math.max(260, r2.width);
-    cmpEndH = Math.max(320, r2.height - 68);
+    cmpStartW = Math.max(240, r1.width);
+    cmpStartH = 220;
+    cmpEndW = Math.max(240, r2.width);
+    cmpEndH = 220;
+    const cRect1 = typeof canvasCompareStart.getBoundingClientRect === 'function' ? canvasCompareStart.getBoundingClientRect() : null;
+    if (cRect1 && cRect1.height > 220) {
+        cmpStartH = Math.round(cRect1.height);
+        cmpEndH = cmpStartH;
+    }
     const ratio = Math.max(2, window.devicePixelRatio || 1);
 
     canvasCompareStart.width = Math.round(cmpStartW * ratio);
@@ -5300,7 +6186,7 @@ function syncCmpToggleButtonsUI() {
             lblId: 'lblCmpAreaStripping',
             showText: 'แสดงขุดลอกหน้าดิน',
             hideText: 'ซ่อนขุดลอกหน้าดิน',
-            onBtnCls: 'flex-1 min-w-0 justify-center px-1.5 py-1 rounded-lg bg-amber-950/80 hover:bg-amber-900/80 text-[10.5px] xl:text-[11px] font-semibold text-amber-200 border border-amber-500/60 transition flex items-center gap-1 whitespace-nowrap',
+            onBtnCls: 'ew-soft-btn ew-soft-amber flex-1 min-w-0 justify-center truncate',
             onDotCls: 'w-2 h-2 rounded-full bg-amber-400 shrink-0'
         },
         {
@@ -5310,7 +6196,7 @@ function syncCmpToggleButtonsUI() {
             lblId: 'lblCmpAreaCompacted',
             showText: 'แสดงดินถมบดอัดแน่น 85%',
             hideText: 'ซ่อนดินถมบดอัดแน่น 85%',
-            onBtnCls: 'flex-1 min-w-0 justify-center px-1.5 py-1 rounded-lg bg-teal-950/80 hover:bg-teal-900/80 text-[10.5px] xl:text-[11px] font-semibold text-teal-200 border border-teal-500/60 transition flex items-center gap-1 whitespace-nowrap',
+            onBtnCls: 'ew-soft-btn ew-soft-teal flex-1 min-w-0 justify-center truncate',
             onDotCls: 'w-2 h-2 rounded-full bg-teal-400 shrink-0'
         },
         {
@@ -5320,7 +6206,7 @@ function syncCmpToggleButtonsUI() {
             lblId: 'lblCmpAreaExcavation',
             showText: 'แสดงดินขุด',
             hideText: 'ซ่อนดินขุด',
-            onBtnCls: 'flex-1 min-w-0 justify-center px-1.5 py-1 rounded-lg bg-orange-950/80 hover:bg-orange-900/80 text-[10.5px] xl:text-[11px] font-semibold text-orange-200 border border-orange-500/60 transition flex items-center gap-1 whitespace-nowrap',
+            onBtnCls: 'ew-soft-btn ew-soft-orange flex-1 min-w-0 justify-center truncate',
             onDotCls: 'w-2 h-2 rounded-full bg-orange-400 shrink-0'
         },
         {
@@ -5330,7 +6216,7 @@ function syncCmpToggleButtonsUI() {
             lblId: 'lblCmpAreaManualFill',
             showText: 'แสดงดินถมด้วยแรงคน',
             hideText: 'ซ่อนดินถมด้วยแรงคน',
-            onBtnCls: 'flex-1 min-w-0 justify-center px-1.5 py-1 rounded-lg bg-purple-950/80 hover:bg-purple-900/80 text-[10.5px] xl:text-[11px] font-semibold text-purple-200 border border-purple-500/60 transition flex items-center gap-1 whitespace-nowrap',
+            onBtnCls: 'ew-soft-btn ew-soft-purple flex-1 min-w-0 justify-center truncate',
             onDotCls: 'w-2 h-2 rounded-full bg-purple-400 shrink-0'
         },
         {
@@ -5340,7 +6226,7 @@ function syncCmpToggleButtonsUI() {
             lblId: 'lblCmpDims',
             showText: 'แสดงมิติโครงสร้าง',
             hideText: 'ซ่อนมิติโครงสร้าง',
-            onBtnCls: 'flex-1 min-w-0 justify-center px-1.5 py-1 rounded-lg bg-cyan-950/80 hover:bg-cyan-900/80 text-[10.5px] xl:text-[11px] font-semibold text-cyan-200 border border-cyan-500/60 transition flex items-center gap-1 whitespace-nowrap',
+            onBtnCls: 'ew-soft-btn ew-soft-cyan flex-1 min-w-0 justify-center truncate',
             onDotCls: 'w-2 h-2 rounded-full bg-cyan-400 shrink-0'
         },
         {
@@ -5350,28 +6236,21 @@ function syncCmpToggleButtonsUI() {
             lblId: 'lblCmpWidths',
             showText: 'แสดงความกว้างขุดลอก/คันดิน',
             hideText: 'ซ่อนความกว้างขุดลอก/คันดิน',
-            onBtnCls: 'flex-1 min-w-0 justify-center px-1.5 py-1 rounded-lg bg-pink-950/80 hover:bg-pink-900/80 text-[10.5px] xl:text-[11px] font-semibold text-pink-200 border border-pink-500/60 transition flex items-center gap-1 whitespace-nowrap',
+            onBtnCls: 'ew-soft-btn ew-soft-pink flex-1 min-w-0 justify-center truncate',
             onDotCls: 'w-2 h-2 rounded-full bg-pink-400 shrink-0'
         }
     ];
 
-    const offBtnCls = 'flex-1 min-w-0 justify-center px-1.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 text-[10.5px] xl:text-[11px] font-medium text-slate-400 border border-slate-700/80 transition flex items-center gap-1 whitespace-nowrap opacity-80';
-    const offDotCls = 'w-2 h-2 rounded-full bg-slate-600 shrink-0';
+    const offBtnCls = 'ew-soft-btn ew-soft-muted flex-1 min-w-0 justify-center truncate';
+    const offDotCls = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
 
-    cmpSpecs.forEach(spec => {
-        const btnEl = document.getElementById(spec.btnId);
-        const dotEl = document.getElementById(spec.dotId);
-        const lblEl = document.getElementById(spec.lblId);
-        if (!btnEl || !dotEl || !lblEl) return;
-        if (spec.isOn) {
-            btnEl.className = spec.onBtnCls;
-            dotEl.className = spec.onDotCls;
-            lblEl.innerText = spec.showText;
-        } else {
-            btnEl.className = offBtnCls;
-            dotEl.className = offDotCls;
-            lblEl.innerText = spec.hideText;
-        }
+    cmpSpecs.forEach(s => {
+        const btn = document.getElementById(s.btnId);
+        const dot = document.getElementById(s.dotId);
+        const lbl = document.getElementById(s.lblId);
+        if (btn) btn.className = s.isOn ? s.onBtnCls : offBtnCls;
+        if (dot) dot.className = s.isOn ? s.onDotCls : offDotCls;
+        if (lbl) lbl.innerText = s.isOn ? s.showText : s.hideText;
     });
 }
 
@@ -5530,8 +6409,8 @@ function updateComparisonView(recenterCanvases = false) {
         <span>กว้างขุดลอก (6-9): <strong class="text-pink-300">${roundLen(ev.secEnd.widths.width69).toFixed(2)} m</strong></span>
     `;
 
-    document.getElementById('cmpRowBadge').innerText = `แถวที่ ${selectedRowIndex + 1} / ${boqRows.length} • ช่วงคูส่งน้ำที่ ${row.sectionNo || (selectedRowIndex + 1)}`;
-    document.getElementById('cmpCanalTitle').innerText = `${row.canalName || '-'} • ${row.subCanalName || '-'}`;
+    document.getElementById('cmpRowBadge').innerText = `แถวที่ ${selectedRowIndex + 1}/${boqRows.length}`;
+    document.getElementById('cmpCanalTitle').innerText = `คลอง: ${row.canalName || '-'} • คู: ${row.subCanalName || '-'} • กม. ${ev.staStartFormatted} → ${ev.staEndFormatted}`;
     document.getElementById('cmpStructSummary').innerText = `TYPE: ${row.type || '-'} | B=${roundLen(row.B).toFixed(2)}, H=${roundLen(row.H).toFixed(2)}, TBL=${roundLen(row.TBL).toFixed(2)}, TBR=${roundLen(row.TBR).toFixed(2)}, tw=${roundLen(row.tw).toFixed(2)}, tb=${roundLen(row.tb).toFixed(2)}, ts=${roundLen(row.ts).toFixed(2)}, dt=${roundLen(row.dt).toFixed(2)}`;
     document.getElementById('cmpStaRange').innerText = `${ev.staStartFormatted} → ${ev.staEndFormatted}`;
     document.getElementById('cmpLengthL').innerText = `${roundLen(ev.L).toFixed(2)} m`;
@@ -5583,14 +6462,19 @@ function updateComparisonView(recenterCanvases = false) {
         const idx = parseInt(tr.getAttribute('data-row-tr'), 10);
         const rObj = boqRows[idx];
         if (!rObj) return;
+        const rLineKey = makeCanalLineKey(rObj.canalName, rObj.subCanalName);
+        const isHiddenRow = collapsedEarthworkCanalLines.has(rLineKey) ||
+            (selectedEarthworkCanalFilter !== 'ALL' && rLineKey !== selectedEarthworkCanalFilter);
+        const hiddenCls = isHiddenRow ? ' ew-row-hidden' : '';
+        const hiddenStyle = isHiddenRow ? ' display: none !important;' : '';
         const pal = getSectionColorPaletteItem(rObj.sectionNo);
         const topBorderCls = tr.getAttribute('data-top-border-cls') || '';
         if (idx === selectedRowIndex) {
-            tr.className = `${pal.selectedCls} ${topBorderCls}`;
-            tr.style.cssText = pal.selectedStyle;
+            tr.className = `${pal.selectedCls} ${topBorderCls}${hiddenCls}`;
+            tr.style.cssText = `${pal.selectedStyle}${hiddenStyle}`;
         } else {
-            tr.className = `${pal.rowCls} ${topBorderCls}`;
-            tr.style.cssText = pal.rowStyle;
+            tr.className = `${pal.rowCls} ${topBorderCls}${hiddenCls}`;
+            tr.style.cssText = `${pal.rowStyle}${hiddenStyle}`;
         }
     });
 }
@@ -5598,13 +6482,15 @@ function updateComparisonView(recenterCanvases = false) {
 // Track station information sent to Section 1 (รูป 3)
 let section1ActiveStationInfo = null;
 
-function loadSelectedRowStationToMain(which) {
-    if (!boqRows.length) return;
-    const row = boqRows[selectedRowIndex] || boqRows[0];
-    const isStart = which === 'start';
-    const targetBL = isStart ? Number(row.blStart) : Number(row.blEnd);
-    const targetNGL = isStart ? Number(row.nglStart) : Number(row.nglEnd);
-    const targetTBL = isStart ? Number(row.tblStart) : Number(row.tblEnd);
+function syncPart3ModelWithRow(row, which = 'start', scrollToPart3 = false) {
+    if (!row) return;
+    const isStart = which !== 'end';
+    const rawBL = isStart ? Number(row.blStart) : Number(row.blEnd);
+    const targetBL = !isNaN(rawBL) ? roundElev(rawBL) : 100.00;
+    const rawNGL = isStart ? row.nglStart : row.nglEnd;
+    const targetNGL = !isMissingNglValue(rawNGL) ? roundElev(Number(rawNGL)) : targetBL;
+    const rawTBL = isStart ? Number(row.tblStart) : Number(row.tblEnd);
+    const targetTBL = !isNaN(rawTBL) ? roundElev(rawTBL) : roundElev(targetBL + Number(row.H || 0.50));
     const targetStaM = isStart ? parseStationToMeters(row.staStart) : parseStationToMeters(row.staEnd);
     const targetStaStr = formatMetersToStation(targetStaM);
 
@@ -5619,6 +6505,66 @@ function loadSelectedRowStationToMain(which) {
         targetTBL: targetTBL,
         rowIndex: selectedRowIndex
     };
+
+    const setInputVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = Number(val).toFixed(2);
+    };
+    setInputVal('inputB', row.B ?? 0.35);
+    setInputVal('inputH', row.H ?? 0.50);
+    setInputVal('inputTBL', row.TBL ?? 0.50);
+    setInputVal('inputTBR', row.TBR ?? 0.50);
+    setInputVal('inputWallT', row.tw ?? 0.10);
+    setInputVal('inputBaseT', row.tb ?? 0.10);
+    setInputVal('inputSubbaseT', row.ts ?? 0.05);
+    setInputVal('inputTopsoil', row.dt ?? 0.30);
+    setInputVal('inputInvert', targetBL);
+
+    paramB = roundLen(row.B ?? 0.35);
+    paramH = roundLen(row.H ?? 0.50);
+    paramTBL = roundLen(row.TBL ?? 0.50);
+    paramTBR = roundLen(row.TBR ?? 0.50);
+    paramWallT = roundLen(row.tw ?? 0.10);
+    paramBaseT = roundLen(row.tb ?? 0.10);
+    paramSubbaseT = roundLen(row.ts ?? 0.05);
+    paramTopsoil = roundLen(row.dt ?? 0.30);
+    paramInvert = targetBL;
+    lastCommittedInvert = targetBL;
+
+    const nglSlider = document.getElementById('nglSlider');
+    if (nglSlider) {
+        nglSlider.min = roundElev(targetBL - NGL_MAX_OFFSET).toFixed(2);
+        nglSlider.max = roundElev(targetBL + NGL_MAX_OFFSET).toFixed(2);
+    }
+
+    const csBody = document.getElementById('crossSectionBody');
+    const csBtn = document.getElementById('btnToggleCrossSectionCollapse');
+    if (csBody && csBody.classList && csBody.classList.contains('hidden')) {
+        csBody.classList.remove('hidden');
+        if (csBtn) csBtn.textContent = '-';
+    }
+
+    updateParams(false);
+    setNGL(targetNGL, true);
+    resizeCanvas();
+    resetView();
+
+    if (scrollToPart3) {
+        const secCrossSection = document.getElementById('sectionCrossSection');
+        if (secCrossSection && typeof secCrossSection.scrollIntoView === 'function') {
+            secCrossSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+}
+
+function loadSelectedRowStationToMain(which) {
+    if (!boqRows.length) return;
+    const row = boqRows[selectedRowIndex] || boqRows[0];
+    const isStart = which === 'start';
+    const targetStaM = isStart ? parseStationToMeters(row.staStart) : parseStationToMeters(row.staEnd);
+    const targetStaStr = formatMetersToStation(targetStaM);
+
+    syncPart3ModelWithRow(row, which, true);
 
     if (typeof channels !== 'undefined' && Array.isArray(channels) && channels.length > 0) {
         const matchedCh = channels.find(c =>
@@ -5635,24 +6581,38 @@ function loadSelectedRowStationToMain(which) {
         }
     }
 
-    if (typeof returnToTakeoff === 'function') returnToTakeoff();
-    if (typeof switchMediaViewTab === 'function') switchMediaViewTab('draw');
-    if (typeof syncCrossSectionSelectorsUI === 'function') syncCrossSectionSelectorsUI();
-    if (typeof redraw === 'function') redraw();
-    showToast(`ส่งข้อมูล ${isStart ? 'รูปที่ 1 (กม.เริ่มต้น' : 'รูปที่ 2 (กม.สิ้นสุด'} ${targetStaStr}) ไปยังส่วนรูปตัดขวางในหน้าหลักเรียบร้อยแล้ว`, 'cyan');
+    showToast(`ส่งข้อมูล ${isStart ? 'รูปที่ 1 (กม.เริ่มต้น' : 'รูปที่ 2 (กม.สิ้นสุด'} ${targetStaStr}) ไปแสดงในส่วนที่ 3 (แบบจำลองรูปตัดขวางงานดิน) เรียบร้อยแล้ว`, 'cyan');
 }
 
 document.getElementById('btnLoadStartToMain')?.addEventListener('click', () => loadSelectedRowStationToMain('start'));
 document.getElementById('btnLoadEndToMain')?.addEventListener('click', () => loadSelectedRowStationToMain('end'));
 
 document.getElementById('btnPrevRow')?.addEventListener('click', () => {
-    if (selectedRowIndex > 0) {
+    if (!boqRows.length) return;
+    if (selectedEarthworkCanalFilter !== 'ALL') {
+        for (let i = selectedRowIndex - 1; i >= 0; i--) {
+            if (makeCanalLineKey(boqRows[i].canalName, boqRows[i].subCanalName) === selectedEarthworkCanalFilter) {
+                selectedRowIndex = i;
+                updateComparisonView(true);
+                return;
+            }
+        }
+    } else if (selectedRowIndex > 0) {
         selectedRowIndex--;
         updateComparisonView(true);
     }
 });
 document.getElementById('btnNextRow')?.addEventListener('click', () => {
-    if (selectedRowIndex < boqRows.length - 1) {
+    if (!boqRows.length) return;
+    if (selectedEarthworkCanalFilter !== 'ALL') {
+        for (let i = selectedRowIndex + 1; i < boqRows.length; i++) {
+            if (makeCanalLineKey(boqRows[i].canalName, boqRows[i].subCanalName) === selectedEarthworkCanalFilter) {
+                selectedRowIndex = i;
+                updateComparisonView(true);
+                return;
+            }
+        }
+    } else if (selectedRowIndex < boqRows.length - 1) {
         selectedRowIndex++;
         updateComparisonView(true);
     }
@@ -5670,17 +6630,17 @@ function getVisibleCategories() {
 
 function syncWorkCategoryToggleButtonsUI() {
     const catStyleMap = {
-        stripping: { activeCls: 'px-2 py-1 rounded-lg bg-amber-950/85 hover:bg-amber-900 text-[11px] text-amber-200 border border-amber-500/70 font-semibold transition flex items-center gap-1 shadow-sm whitespace-nowrap shrink-0', dotCls: 'w-2 h-2 rounded-full bg-amber-400 shrink-0' },
-        compacted: { activeCls: 'px-2 py-1 rounded-lg bg-teal-950/85 hover:bg-teal-900 text-[11px] text-teal-200 border border-teal-500/70 font-semibold transition flex items-center gap-1 shadow-sm whitespace-nowrap shrink-0', dotCls: 'w-2 h-2 rounded-full bg-teal-400 shrink-0' },
-        excavation: { activeCls: 'px-2 py-1 rounded-lg bg-orange-950/85 hover:bg-orange-900 text-[11px] text-orange-200 border border-orange-500/70 font-semibold transition flex items-center gap-1 shadow-sm whitespace-nowrap shrink-0', dotCls: 'w-2 h-2 rounded-full bg-orange-400 shrink-0' },
-        manualLeft: { activeCls: 'px-2 py-1 rounded-lg bg-purple-950/85 hover:bg-purple-900 text-[11px] text-purple-200 border border-purple-500/70 font-semibold transition flex items-center gap-1 shadow-sm whitespace-nowrap shrink-0', dotCls: 'w-2 h-2 rounded-full bg-purple-400 shrink-0' },
-        manualRight: { activeCls: 'px-2 py-1 rounded-lg bg-purple-950/85 hover:bg-purple-900 text-[11px] text-purple-200 border border-purple-500/70 font-semibold transition flex items-center gap-1 shadow-sm whitespace-nowrap shrink-0', dotCls: 'w-2 h-2 rounded-full bg-purple-400 shrink-0' },
-        manualTotal: { activeCls: 'px-2 py-1 rounded-lg bg-purple-950/85 hover:bg-purple-900 text-[11px] text-purple-200 border border-purple-500/70 font-semibold transition flex items-center gap-1 shadow-sm whitespace-nowrap shrink-0', dotCls: 'w-2 h-2 rounded-full bg-purple-400 shrink-0' },
-        concrete: { activeCls: 'px-2 py-1 rounded-lg bg-sky-950/85 hover:bg-sky-900 text-[11px] text-sky-200 border border-sky-500/70 font-semibold transition flex items-center gap-1 shadow-sm whitespace-nowrap shrink-0', dotCls: 'w-2 h-2 rounded-full bg-sky-400 shrink-0' },
-        subbase: { activeCls: 'px-2 py-1 rounded-lg bg-sky-950/85 hover:bg-sky-900 text-[11px] text-sky-200 border border-sky-500/70 font-semibold transition flex items-center gap-1 shadow-sm whitespace-nowrap shrink-0', dotCls: 'w-2 h-2 rounded-full bg-sky-300 shrink-0' }
+        stripping: { activeCls: 'ew-soft-btn ew-soft-amber', dotCls: 'w-2 h-2 rounded-full bg-amber-400 shrink-0' },
+        compacted: { activeCls: 'ew-soft-btn ew-soft-teal', dotCls: 'w-2 h-2 rounded-full bg-teal-400 shrink-0' },
+        excavation: { activeCls: 'ew-soft-btn ew-soft-orange', dotCls: 'w-2 h-2 rounded-full bg-orange-400 shrink-0' },
+        manualLeft: { activeCls: 'ew-soft-btn ew-soft-purple', dotCls: 'w-2 h-2 rounded-full bg-purple-400 shrink-0' },
+        manualRight: { activeCls: 'ew-soft-btn ew-soft-purple', dotCls: 'w-2 h-2 rounded-full bg-purple-400 shrink-0' },
+        manualTotal: { activeCls: 'ew-soft-btn ew-soft-purple', dotCls: 'w-2 h-2 rounded-full bg-purple-400 shrink-0' },
+        concrete: { activeCls: 'ew-soft-btn ew-soft-sky', dotCls: 'w-2 h-2 rounded-full bg-sky-400 shrink-0' },
+        subbase: { activeCls: 'ew-soft-btn ew-soft-sky', dotCls: 'w-2 h-2 rounded-full bg-sky-300 shrink-0' }
     };
-    const inactiveCls = 'px-2 py-1 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-[11px] text-slate-500 border border-slate-700/70 font-medium transition flex items-center gap-1 opacity-65 whitespace-nowrap shrink-0';
-    const inactiveDotCls = 'w-2 h-2 rounded-full bg-slate-600 shrink-0';
+    const inactiveCls = 'ew-soft-btn ew-soft-muted';
+    const inactiveDotCls = 'w-2 h-2 rounded-full bg-slate-400 shrink-0';
 
     document.querySelectorAll('button[data-toggle-work-cat]').forEach(btn => {
         const k = btn.getAttribute('data-toggle-work-cat');
@@ -5695,15 +6655,12 @@ function syncWorkCategoryToggleButtonsUI() {
     const btnAll = document.getElementById('btnShowAllWorkCategories');
     if (btnAll) {
         const allShown = hiddenWorkCategories.size === 0;
-        btnAll.className = allShown
-            ? 'px-2 py-1 rounded-lg bg-cyan-950/90 hover:bg-cyan-900 text-[11px] text-cyan-200 border border-cyan-500/60 font-bold transition flex items-center gap-1 shadow-sm'
-            : 'px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-amber-300 border border-amber-500/50 font-semibold transition flex items-center gap-1';
+        btnAll.className = allShown ? 'ew-soft-btn ew-soft-cyan' : 'ew-soft-btn ew-soft-amber';
         btnAll.innerHTML = allShown
             ? `<span>👁️ แสดงครบทุกหมวด (8)</span>`
             : `<span>👁️ แสดงอยู่ ${WORK_CATEGORIES.length - hiddenWorkCategories.size}/${WORK_CATEGORIES.length} หมวด (คลิกแสดงทั้งหมด)</span>`;
     }
 }
-
 
 // ============================================================================
 // 5.5 COLUMN VISIBILITY TOGGLE SYSTEM (รูป 2: ซ่อน/แสดงคอลัมน์ A-T ยกเว้นคำนวณพื้นที่)
@@ -5933,7 +6890,7 @@ function getSingleStationVisualStyle(row, isStartSide = true) {
     if (!isStartSide) {
         return {
             origin: 'base',
-            inputCls: 'text-cyan-300 font-mono font-bold',
+            inputCls: 'ew-sta-base font-mono font-bold',
             printStyle: 'color: #0f172a; font-weight: bold;'
         };
     }
@@ -5946,51 +6903,57 @@ function getSingleStationVisualStyle(row, isStartSide = true) {
         startRemark = remarkStr.split('->')[0] || '';
     }
 
+    // ปุ่มที่ 3: 1. ขุดลอกหน้าดินเป็น 0 (สีเหลืองอำพัน Amber — ew-soft-amber)
     if (tags.includes('zero_stripping') || startRemark.includes('ขุดลอกหน้าดินเป็น 0')) {
         return {
             origin: 'zero_stripping',
-            inputCls: 'bg-amber-500/25 text-amber-200 font-mono font-extrabold ring-1 ring-inset ring-amber-400/85',
-            printStyle: 'background-color: #fef3c7; color: #92400e; font-weight: bold;'
+            inputCls: 'ew-sta-split-zero-stripping font-mono font-extrabold',
+            printStyle: 'background-color: #fef3c7; color: #b45309; font-weight: bold;'
         };
     }
+    // ปุ่มที่ 4: 2. ดินถมบดอัด 85% เป็น 0 (สีเขียวอมฟ้า Teal — ew-soft-teal)
     if (tags.includes('zero_compacted') || (startRemark.includes('ดินถมบดอัด') && startRemark.includes('0'))) {
         return {
             origin: 'zero_compacted',
-            inputCls: 'bg-teal-500/25 text-teal-200 font-mono font-extrabold ring-1 ring-inset ring-teal-400/85',
-            printStyle: 'background-color: #ccfbf1; color: #115e59; font-weight: bold;'
+            inputCls: 'ew-sta-split-zero-compacted font-mono font-extrabold',
+            printStyle: 'background-color: #ccfbf1; color: #0f766e; font-weight: bold;'
         };
     }
+    // ปุ่มที่ 5: 3. พื้นที่ดินขุดเป็น 0 (สีส้ม Orange — ew-soft-orange)
     if (tags.includes('zero_excavation') || startRemark.includes('ดินขุดเป็น 0') || startRemark.includes('ดินขุด=0')) {
         return {
             origin: 'zero_excavation',
-            inputCls: 'bg-orange-500/25 text-orange-200 font-mono font-extrabold ring-1 ring-inset ring-orange-400/85',
-            printStyle: 'background-color: #ffedd5; color: #9a3412; font-weight: bold;'
+            inputCls: 'ew-sta-split-zero-excavation font-mono font-extrabold',
+            printStyle: 'background-color: #ffedd5; color: #c2410c; font-weight: bold;'
         };
     }
+    // ปุ่มที่ 6: 4. ดินถมด้วยแรงคนเป็น 0 (สีม่วง Purple — ew-soft-purple)
     if (tags.includes('zero_manual') || (startRemark.includes('ดินถมแรงคน') && startRemark.includes('0'))) {
         return {
             origin: 'zero_manual',
-            inputCls: 'bg-purple-500/25 text-purple-200 font-mono font-extrabold ring-1 ring-inset ring-purple-400/85',
+            inputCls: 'ew-sta-split-zero-manual font-mono font-extrabold',
             printStyle: 'background-color: #f3e8ff; color: #6b21a8; font-weight: bold;'
         };
     }
-    if (tags.includes('ngl') || startRemark.includes('จุดหักดินเดิม') || startRemark.includes('ดินเดิม')) {
-        return {
-            origin: 'ngl',
-            inputCls: 'bg-emerald-500/25 text-emerald-200 font-mono font-extrabold ring-1 ring-inset ring-emerald-400/85',
-            printStyle: 'background-color: #d1fae5; color: #065f46; font-weight: bold;'
-        };
-    }
+    // ปุ่มที่ 1: แบ่ง กม. ออกเป็นทุกๆ X เมตร (สีฟ้า Cyan — ew-soft-cyan)
     if (tags.some(t => t === 'step' || String(t).startsWith('step:')) || startRemark.includes('จุดแบ่งทุก')) {
         return {
             origin: 'step',
-            inputCls: 'bg-yellow-500/25 text-yellow-200 font-mono font-extrabold ring-1 ring-inset ring-yellow-400/85',
-            printStyle: 'background-color: #fef08a; color: #854d0e; font-weight: bold;'
+            inputCls: 'ew-sta-split-step font-mono font-extrabold',
+            printStyle: 'background-color: #cffafe; color: #0e7490; font-weight: bold;'
+        };
+    }
+    // ปุ่มที่ 2: แทรก กม. ตามจุดหักดินเดิม NGL (สีเขียว Emerald — ew-soft-emerald)
+    if (tags.includes('ngl') || startRemark.includes('จุดหักดินเดิม') || startRemark.includes('ดินเดิม')) {
+        return {
+            origin: 'ngl',
+            inputCls: 'ew-sta-split-ngl font-mono font-extrabold',
+            printStyle: 'background-color: #d1fae5; color: #047857; font-weight: bold;'
         };
     }
     return {
         origin: 'base',
-        inputCls: 'text-cyan-300 font-mono font-bold',
+        inputCls: 'ew-sta-base font-mono font-bold',
         printStyle: 'color: #0f172a; font-weight: bold;'
     };
 }
@@ -8072,15 +9035,12 @@ function renderBoqTable() {
     const isFilteredCat = selectedCategoryFilter !== 'all';
     const activeCatLabel = isFilteredCat && visibleCats[0] ? visibleCats[0].shortLabel : 'ครบ 14 จุด';
 
-    // Row 1 of Table Header: With Column Hide Eye Icon at Cell #
+    // Row 1 of Table Header
     let headerRow1 = `<tr class="border-b border-slate-700 text-[11px] text-slate-400">`;
     headerRow1 += `
         <th rowspan="2" class="py-1.5 px-2 text-center bg-slate-900 border-r border-slate-800 sticky left-0 z-30">
             <div class="flex items-center justify-center gap-1">
-                <span>#</span>
-                <button type="button" id="btnHeaderColEye" onclick="openColumnVisibilityModal()" class="p-0.5 rounded hover:bg-slate-800 text-cyan-400 hover:text-white transition" title="คลิกเพื่อซ่อน/แสดงคอลัมน์ A ถึง U">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                </button>
+                <span>ลำดับ</span>
             </div>
         </th>
     `;
@@ -8088,20 +9048,19 @@ function renderBoqTable() {
     INPUT_COLUMNS.forEach(col => {
         const isHidden = hiddenColumnKeys.has(col.key);
         const hideStyle = isHidden ? 'style="display:none;"' : '';
-        headerRow1 += `<th ${hideStyle} class="py-1 px-2 text-center border-r border-slate-800 font-mono text-cyan-400 bg-slate-900/95 cursor-pointer hover:bg-slate-800 transition" title="คลิกเพื่อซ่อนคอลัมน์ ${col.colLetter} (${col.label})" onclick="toggleHideColumn('${col.key}')">${col.colLetter}</th>`;
+        headerRow1 += `<th ${hideStyle} class="py-1 px-1.5 text-center border-r border-slate-800 font-mono text-cyan-400 bg-slate-900/95 cursor-pointer hover:bg-slate-800 transition" title="คลิกเพื่อซ่อนคอลัมน์ ${col.colLetter} (${col.label})" onclick="toggleHideColumn('${col.key}')">${col.colLetter}</th>`;
     });
 
-    // 14 Node Coordinate Header Groups (กม.เริ่มต้น และ กม.สิ้นสุด แยกกัน และกรองเฉพาะจุดที่เกี่ยวข้องเมื่อเลือกแยกหมวดงาน)
     if (visibleNodeNums.length > 0) {
-        headerRow1 += `<th colspan="${visibleNodeNums.length}" class="py-1.5 px-3 text-center border-r border-slate-700 font-bold text-cyan-300 bg-cyan-950/60">📍 พิกัดจุด กม.เริ่มต้น (X, ระดับ Y) • ${isFilteredCat ? `เฉพาะจุดที่เกี่ยวข้อง (${activeCatLabel})` : 'ครบ 14 จุด (Node 1–14)'}</th>`;
-        headerRow1 += `<th colspan="${visibleNodeNums.length}" class="py-1.5 px-3 text-center border-r border-slate-700 font-bold text-amber-300 bg-amber-950/60">📍 พิกัดจุด กม.สิ้นสุด (X, ระดับ Y) • ${isFilteredCat ? `เฉพาะจุดที่เกี่ยวข้อง (${activeCatLabel})` : 'ครบ 14 จุด (Node 1–14)'}</th>`;
+        headerRow1 += `<th colspan="${visibleNodeNums.length}" class="py-1.5 px-2 text-center border-r border-slate-700 font-bold text-cyan-300 bg-cyan-950/60">📍 พิกัดจุด กม.เริ่มต้น (X, ระดับ Y) • ${isFilteredCat ? `เฉพาะจุดที่เกี่ยวข้อง (${activeCatLabel})` : 'ครบ 14 จุด (Node 1–14)'}</th>`;
+        headerRow1 += `<th colspan="${visibleNodeNums.length}" class="py-1.5 px-2 text-center border-r border-slate-700 font-bold text-amber-300 bg-amber-950/60">📍 พิกัดจุด กม.สิ้นสุด (X, ระดับ Y) • ${isFilteredCat ? `เฉพาะจุดที่เกี่ยวข้อง (${activeCatLabel})` : 'ครบ 14 จุด (Node 1–14)'}</th>`;
     }
 
-    // Area/Volume Calculation Columns: Always preserved and governed by Category filter
     visibleCats.forEach(cat => {
-        headerRow1 += `<th colspan="4" class="py-1.5 px-3 text-center border-r border-slate-700 font-bold ${cat.color} ${cat.bgHeader}">${cat.label}</th>`;
+        headerRow1 += `<th colspan="4" class="py-1.5 px-2 text-center border-r border-slate-700 font-bold ${cat.color} ${cat.bgHeader}">${cat.label}</th>`;
     });
-    headerRow1 += `<th rowspan="2" class="py-2 px-2 text-center bg-slate-900">ลบ</th>`;
+    headerRow1 += `<th rowspan="2" class="py-1.5 px-2 text-center bg-slate-900 border-r border-slate-800">เพิ่มแถว</th>`;
+    headerRow1 += `<th rowspan="2" class="py-1.5 px-2 text-center bg-slate-900">ลบแถว</th>`;
     headerRow1 += `</tr>`;
 
     // Row 2 of Table Header: Column Labels
@@ -8109,275 +9068,285 @@ function renderBoqTable() {
     INPUT_COLUMNS.forEach(col => {
         const isHidden = hiddenColumnKeys.has(col.key);
         const hideStyle = isHidden ? 'style="display:none;"' : '';
-        headerRow2 += `<th ${hideStyle} class="py-2 px-2 text-center border-r border-slate-800 font-semibold text-slate-200">${col.label}</th>`;
+        headerRow2 += `<th ${hideStyle} class="py-1.5 px-1.5 text-center border-r border-slate-800 font-semibold text-slate-200">${col.label}</th>`;
     });
     if (visibleNodeNums.length > 0) {
         visibleNodeNums.forEach(n => {
-            headerRow2 += `<th class="py-1.5 px-2 text-center border-r border-slate-800/80 text-cyan-200 font-mono text-[11px] bg-cyan-950/40">จุดที่ ${n} (เริ่มต้น)</th>`;
+            headerRow2 += `<th class="py-1 px-1.5 text-center border-r border-slate-800/80 text-cyan-200 font-mono text-[11px] bg-cyan-950/40">จุดที่ ${n} (เริ่ม)</th>`;
         });
         visibleNodeNums.forEach(n => {
-            headerRow2 += `<th class="py-1.5 px-2 text-center border-r border-slate-800/80 text-amber-200 font-mono text-[11px] bg-amber-950/40">จุดที่ ${n} (สิ้นสุด)</th>`;
+            headerRow2 += `<th class="py-1 px-1.5 text-center border-r border-slate-800/80 text-amber-200 font-mono text-[11px] bg-amber-950/40">จุดที่ ${n} (สิ้นสุด)</th>`;
         });
     }
     visibleCats.forEach(cat => {
         headerRow2 += `
-            <th class="py-1.5 px-2 text-right border-r border-slate-800/80 text-cyan-300 font-medium ${cat.bgHeader}">A1 (m²)</th>
-            <th class="py-1.5 px-2 text-right border-r border-slate-800/80 text-amber-300 font-medium ${cat.bgHeader}">A2 (m²)</th>
-            <th class="py-1.5 px-2 text-right border-r border-slate-800/80 text-slate-300 font-medium ${cat.bgHeader}">L (m)</th>
-            <th class="py-1.5 px-2.5 text-right border-r border-slate-700 font-bold ${cat.color} ${cat.bgHeader}">ปริมาณ (m³)</th>
+            <th class="py-1 px-1.5 text-right border-r border-slate-800/80 text-cyan-300 font-medium ${cat.bgHeader}">A1 (m²)</th>
+            <th class="py-1 px-1.5 text-right border-r border-slate-800/80 text-amber-300 font-medium ${cat.bgHeader}">A2 (m²)</th>
+            <th class="py-1 px-1.5 text-right border-r border-slate-800/80 text-slate-300 font-medium ${cat.bgHeader}">L (m)</th>
+            <th class="py-1 px-2 text-right border-r border-slate-700 font-bold ${cat.color} ${cat.bgHeader}">ปริมาณ (m³)</th>
         `;
     });
     headerRow2 += `</tr>`;
-    thead.innerHTML = headerRow1 + headerRow2;
+    if (thead) thead.innerHTML = headerRow1 + headerRow2;
 
     const totalsByCat = {};
     WORK_CATEGORIES.forEach(c => { totalsByCat[c.key] = 0; });
     let totalLengthL = 0;
+    let visibleRowCountForFooter = 0;
 
     const visibleInputColCount = INPUT_COLUMNS.filter(c => !hiddenColumnKeys.has(c.key)).length;
     const totalLeadingCols = 1 + visibleInputColCount + (visibleNodeNums.length * 2);
-    const totalAllCols = totalLeadingCols + (visibleCats.length * 4) + 1;
+    const totalAllCols = totalLeadingCols + (visibleCats.length * 4) + 2;
 
     if (!boqRows.length) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="${totalAllCols}" class="py-10 px-4 text-center text-slate-400 text-xs bg-slate-950/60">
-                    ยังไม่มีข้อมูลในตารางคำนวณปริมาณงาน (กรุณาอัปโหลดไฟล์ Excel, โหลดไฟล์โปรเจกต์, หรือส่งข้อมูลระดับดินเดิม NGL จากส่วนที่ 2)
-                </td>
-            </tr>
-        `;
-    } else {
-    // ตรวจสอบและจัดลำดับ ช่วงคูส่งน้ำ (sectionNo) ให้เริ่มนับ 1 ใหม่ทุกครั้งที่สายคูส่งน้ำเปลี่ยน
-    recalculateSectionNumbersByCanalLine(boqRows);
-    if (Array.isArray(masterBoqRows) && masterBoqRows.length) {
-        recalculateSectionNumbersByCanalLine(masterBoqRows);
-    }
-
-    // คำนวณข้อมูลสรุปแต่ละสายคูส่งน้ำเพื่อแสดงเส้นแบ่งสายคูส่งน้ำ
-    const lineSummaryByKey = new Map();
-    boqRows.forEach(r => {
-        const lKey = makeCanalLineKey(r.canalName, r.subCanalName);
-        const s1 = parseStationToMeters(r.staStart);
-        const s2 = parseStationToMeters(r.staEnd);
-        if (!lineSummaryByKey.has(lKey)) {
-            lineSummaryByKey.set(lKey, {
-                canalName: r.canalName || '-',
-                subCanalName: r.subCanalName || '-',
-                minSta: Math.min(s1, s2),
-                maxSta: Math.max(s1, s2),
-                rowCount: 0,
-                secSet: new Set()
-            });
-        }
-        const info = lineSummaryByKey.get(lKey);
-        info.minSta = Math.min(info.minSta, s1, s2);
-        info.maxSta = Math.max(info.maxSta, s1, s2);
-        info.rowCount++;
-        info.secSet.add(String(r.sectionNo || '1'));
-    });
-
-    let currentLineOrder = 0;
-
-    // รอบ 60: คำนวณยอดรวมจากทุกแถว (ไม่ได้กรอง) แล้วค่อยกรอง/ย่อสายตอน render
-    boqRows.forEach((row) => {
-        const ev = evaluateBoqRow(row);
-        totalLengthL = roundLen(totalLengthL + ev.L);
-        WORK_CATEGORIES.forEach(cat => {
-            totalsByCat[cat.key] = roundVol(totalsByCat[cat.key] + ev.calcByCat[cat.key].vol);
-        });
-    });
-
-    // รอบ 60: สร้างรายการแถวที่จะแสดง (กรองตามสาย + ย่อ/ขยายสาย) โดยยังคงดัชนีเดิม rIdx
-    const renderedEntries = [];
-    boqRows.forEach((row, rIdx) => {
-        const lKey = makeCanalLineKey(row.canalName, row.subCanalName);
-        if (activeCanalLineFilter !== 'all' && lKey !== activeCanalLineFilter) return;
-        if (collapsedCanalLines.has(lKey)) {
-            // สายที่ย่อไว้: แสดงเฉพาะแถวหัวป้ายชื่อสาย (พร้อมปุ่มขยาย) ไม่แสดงแถวข้อมูล
-            const alreadyAdded = renderedEntries.some(e => e.isCollapsedLine && e.lineKey === lKey);
-            if (!alreadyAdded) {
-                renderedEntries.push({ isCollapsedLine: true, lineKey: lKey, row: row, rIdx: rIdx });
-            }
-            return;
-        }
-        renderedEntries.push({ row: row, rIdx: rIdx, lineKey: lKey });
-    });
-
-    tbody.innerHTML = renderedEntries.map((entry, visIdx) => {
-        const row = entry.row;
-        const rIdx = entry.rIdx;
-        const ev = evaluateBoqRow(row);
-
-        const isSelected = rIdx === selectedRowIndex;
-        const theme = getRowSplitTheme(row);
-        const pal = getSectionColorPaletteItem(row.sectionNo);
-
-        const curLineKey = entry.lineKey;
-        const prevEntry = visIdx > 0 ? renderedEntries[visIdx - 1] : null;
-        const prevRow = prevEntry ? prevEntry.row : null;
-        const prevLineKey = prevEntry ? prevEntry.lineKey : null;
-        const isNewCanalLine = (prevEntry === null || curLineKey !== prevLineKey);
-        const isNewSectionInSameLine = (!isNewCanalLine && prevRow && String(row.sectionNo) !== String(prevRow.sectionNo));
-
-        let topBorderCls = '';
-        if (rIdx > 0 && isNewCanalLine) {
-            topBorderCls = 'border-t-2 border-t-cyan-400';
-        } else if (isNewSectionInSameLine) {
-            topBorderCls = 'border-t border-t-slate-500/80';
-        }
-
-        const rowBgClass = isSelected ? `${pal.selectedCls} ${topBorderCls}` : `${pal.rowCls} ${topBorderCls}`;
-        const rowInlineStyle = isSelected ? pal.selectedStyle : pal.rowStyle;
-
-        let dividerRowHtml = '';
-        if (isNewCanalLine) {
-            currentLineOrder++;
-            const lInfo = lineSummaryByKey.get(curLineKey) || { canalName: row.canalName || '-', subCanalName: row.subCanalName || '-', minSta: 0, maxSta: 0, rowCount: 1, secSet: new Set(['1']) };
-            const topSepStyle = visIdx > 0 ? 'border-top: 3px solid #06b6d4;' : '';
-            const isCollapsed = isCanalLineCollapsed(curLineKey);
-            const toggleLabel = isCollapsed ? 'ขยายข้อมูลสายนี้' : 'ย่อข้อมูลสายนี้';
-            const toggleTitle = isCollapsed ? 'คลิกเพื่อขยายดูข้อมูลทั้งหมดของสายคูส่งน้ำนี้' : 'คลิกเพื่อย่อ/ซ่อนข้อมูลของสายคูส่งน้ำนี้';
-            dividerRowHtml = `
-                <tr class="canal-line-divider-row select-none bg-slate-900/95 border-b border-cyan-500/50" style="${topSepStyle}">
-                    <td colspan="${totalAllCols}" class="py-1.5 px-3 text-left text-xs font-bold text-cyan-200 bg-gradient-to-r from-cyan-950/95 via-slate-900/95 to-slate-900/90">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <button type="button" class="ew-line-toggle-btn" data-line-key="${ewEscapeAttr(curLineKey)}" onclick="toggleCanalLineCollapse('${ewEscapeAttr(curLineKey)}')" title="${toggleTitle}" aria-expanded="${isCollapsed ? 'false' : 'true'}">
-                                <span class="ew-line-toggle-icon">${isCollapsed ? '▸' : '▾'}</span>
-                                <span>${toggleLabel}</span>
-                            </button>
-                            <span class="px-2 py-0.5 rounded bg-cyan-600 text-white text-[11px] font-extrabold shadow">สายคูส่งน้ำที่ ${currentLineOrder}</span>
-                            <span>คลองส่งน้ำ: <strong class="text-white">${lInfo.canalName}</strong></span>
-                            <span class="text-slate-500">•</span>
-                            <span>คูส่งน้ำ: <strong class="text-emerald-300">${lInfo.subCanalName}</strong></span>
-                            <span class="text-slate-500">•</span>
-                            <span class="text-slate-300 font-mono text-[11px]">กม. ${formatMetersToStation(lInfo.minSta)} – ${formatMetersToStation(lInfo.maxSta)} (${lInfo.secSet.size} ช่วงคูส่งน้ำ • ${lInfo.rowCount} แถว)${isCollapsed ? ' • <span class="text-amber-300 font-bold">[ย่ออยู่]</span>' : ''}</span>
-                        </div>
+        updateEarthworkCanalLineFilterDropdownUI(new Map());
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="${totalAllCols}" class="py-10 px-4 text-center text-slate-400 text-xs bg-slate-950/60">
+                        ยังไม่มีข้อมูลในตารางคำนวณปริมาณงาน (กรุณากดปุ่ม "ดึงค่าจากส่วนถอดแบบ" หรืออัปโหลดไฟล์ Excel)
                     </td>
                 </tr>
             `;
         }
-
-        // รอบ 60: ถ้าสายนี้ถูกย่อไว้ ให้แสดงเฉพาะแถวหัวป้ายชื่อสาย (ไม่แสดงแถวข้อมูล)
-        if (entry.isCollapsedLine) {
-            return dividerRowHtml;
+    } else {
+        recalculateSectionNumbersByCanalLine(boqRows);
+        if (Array.isArray(masterBoqRows) && masterBoqRows.length) {
+            recalculateSectionNumbersByCanalLine(masterBoqRows);
         }
 
-        let cellsHtml = `<td class="py-1.5 px-2 text-center font-bold text-slate-300 border-r border-slate-800 sticky left-0 bg-slate-900/95 z-10 ${pal.leftBorderCls}">${rIdx + 1}</td>`;
-
-        INPUT_COLUMNS.forEach((col, cIdx) => {
-            const isHidden = hiddenColumnKeys.has(col.key);
-            const hideStyle = isHidden ? 'style="display:none;"' : '';
-
-            let displayVal = row[col.key];
-            const isNglCol = (col.key === 'nglStart' || col.key === 'nglEnd');
-            if (col.type === 'station') {
-                displayVal = formatMetersToStation(parseStationToMeters(row[col.key]));
-            } else if (isNglCol) {
-                displayVal = formatNglCellValue(row[col.key]);
-            } else if (col.type === 'number' && displayVal !== undefined && displayVal !== '') {
-                displayVal = Number(displayVal).toFixed(col.decimals);
+        const lineSummaryByKey = new Map();
+        boqRows.forEach(r => {
+            const lKey = makeCanalLineKey(r.canalName, r.subCanalName);
+            const s1 = parseStationToMeters(r.staStart);
+            const s2 = parseStationToMeters(r.staEnd);
+            if (!lineSummaryByKey.has(lKey)) {
+                lineSummaryByKey.set(lKey, {
+                    canalName: r.canalName || '-',
+                    subCanalName: r.subCanalName || '-',
+                    minSta: Math.min(s1, s2),
+                    maxSta: Math.max(s1, s2),
+                    rowCount: 0,
+                    secSet: new Set()
+                });
             }
+            const info = lineSummaryByKey.get(lKey);
+            info.minSta = Math.min(info.minSta, s1, s2);
+            info.maxSta = Math.max(info.maxSta, s1, s2);
+            info.rowCount++;
+            info.secSet.add(String(r.sectionNo || '1'));
+        });
 
-            let cellTextCls = 'text-slate-100 font-medium';
-            let alignCls = 'text-right font-mono';
-            if (col.key === 'sectionNo') {
-                alignCls = 'text-center font-mono font-bold';
-                cellTextCls = pal.secInputCls;
-            } else if (isNglCol && isMissingNglValue(row[col.key])) {
-                alignCls = 'text-center font-mono font-bold';
-                cellTextCls = 'text-amber-300';
-            } else if (col.type === 'text') {
-                alignCls = 'text-left';
-            } else if (col.type === 'station') {
-                alignCls = 'text-center';
-                if (col.key === 'staStart') {
-                    const stStyle = getSingleStationVisualStyle(row, true);
-                    cellTextCls = stStyle.inputCls;
+        updateEarthworkCanalLineFilterDropdownUI(lineSummaryByKey);
+
+        let currentLineOrder = 0;
+        let currentLineRowSeq = 0;
+
+        if (tbody) {
+            tbody.innerHTML = boqRows.map((row, rIdx) => {
+                const curLineKey = makeCanalLineKey(row.canalName, row.subCanalName);
+                const prevRow = rIdx > 0 ? boqRows[rIdx - 1] : null;
+                const prevLineKey = prevRow ? makeCanalLineKey(prevRow.canalName, prevRow.subCanalName) : null;
+                const nextRow = boqRows[rIdx + 1];
+                const nextLineKey = nextRow ? makeCanalLineKey(nextRow.canalName, nextRow.subCanalName) : null;
+
+                const isNewCanalLine = (rIdx === 0 || curLineKey !== prevLineKey);
+                const isLastRowOfCanalLine = (!nextRow || nextLineKey !== curLineKey);
+                const isNewSectionInSameLine = (!isNewCanalLine && prevRow && String(row.sectionNo) !== String(prevRow.sectionNo));
+
+                if (isNewCanalLine) {
+                    currentLineOrder++;
+                    currentLineRowSeq = 1;
                 } else {
-                    cellTextCls = 'text-cyan-300 font-mono font-bold';
+                    currentLineRowSeq++;
                 }
-            }
 
-            if (col.key === 'remark') {
-                cellsHtml += `
-                    <td ${hideStyle} class="p-0.5 border-r border-slate-800/80">
-                        <div class="flex items-center gap-1.5 min-w-0">
-                            <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0 ${theme.badgeCls}">${theme.badgeLabel}</span>
-                            <input
-                                type="text"
-                                data-row="${rIdx}"
-                                data-col="${cIdx}"
-                                data-key="${col.key}"
-                                data-type="${col.type}"
-                                data-decimals="${col.decimals || 0}"
-                                value="${displayVal ?? ''}"
-                                class="table-cell-input ${col.width} px-1.5 py-1 bg-transparent focus:bg-slate-800 text-xs ${alignCls} ${cellTextCls} rounded focus:outline-none focus:ring-1 focus:ring-cyan-400"
-                            >
-                        </div>
-                    </td>
-                `;
-            } else {
-                cellsHtml += `
-                    <td ${hideStyle} class="p-0.5 border-r border-slate-800/80">
-                        <input
-                            type="text"
-                            data-row="${rIdx}"
-                            data-col="${cIdx}"
-                            data-key="${col.key}"
-                            data-type="${col.type}"
-                            data-decimals="${col.decimals || 0}"
-                            value="${displayVal ?? ''}"
-                            class="table-cell-input ${col.width} px-1.5 py-1 bg-transparent focus:bg-slate-800 text-xs ${alignCls} ${cellTextCls} rounded focus:outline-none focus:ring-1 focus:ring-cyan-400"
-                        >
-                    </td>
-                `;
-            }
-        });
+                const isLineFilteredOut = (selectedEarthworkCanalFilter !== 'ALL' && curLineKey !== selectedEarthworkCanalFilter);
+                const isLineCollapsed = collapsedEarthworkCanalLines.has(curLineKey);
+                const isRowHidden = isLineFilteredOut || isLineCollapsed;
 
-        // Node Coordinate Cells (กม.เริ่มต้น และ กม.สิ้นสุด แยกกัน)
-        if (visibleNodeNums.length > 0) {
-            visibleNodeNums.forEach(n => {
-                const coordStr1 = formatNodeCoordCellText(ev.secStart, n, selectedCategoryFilter);
-                cellsHtml += `<td data-node-coord="start-${n}-${rIdx}" class="py-1.5 px-2 text-center font-mono text-[11px] ${coordStr1 === '-' ? 'text-slate-600' : 'text-cyan-200/95'} border-r border-slate-800/60 bg-cyan-950/15">${coordStr1}</td>`;
-            });
-            visibleNodeNums.forEach(n => {
-                const coordStr2 = formatNodeCoordCellText(ev.secEnd, n, selectedCategoryFilter);
-                cellsHtml += `<td data-node-coord="end-${n}-${rIdx}" class="py-1.5 px-2 text-center font-mono text-[11px] ${coordStr2 === '-' ? 'text-slate-600' : 'text-amber-200/95'} border-r border-slate-800/60 bg-amber-950/15">${coordStr2}</td>`;
-            });
+                const ev = evaluateBoqRow(row);
+                if (!isLineFilteredOut) {
+                    visibleRowCountForFooter++;
+                    totalLengthL = roundLen(totalLengthL + ev.L);
+                    WORK_CATEGORIES.forEach(cat => {
+                        totalsByCat[cat.key] = roundVol(totalsByCat[cat.key] + ev.calcByCat[cat.key].vol);
+                    });
+                }
+
+                const isSelected = rIdx === selectedRowIndex;
+                const theme = getRowSplitTheme(row);
+                const pal = getSectionColorPaletteItem(row.sectionNo);
+
+                let topBorderCls = '';
+                if (isNewCanalLine) {
+                    topBorderCls = 'ew-section-divider-top border-t-2 border-t-cyan-400';
+                } else if (isNewSectionInSameLine) {
+                    topBorderCls = 'ew-section-divider-top ew-new-section-row border-t-2';
+                }
+
+                const hiddenCls = isRowHidden ? ' ew-row-hidden' : '';
+                const rowBgClass = isSelected ? `${pal.selectedCls} ${topBorderCls}${hiddenCls}` : `${pal.rowCls} ${topBorderCls}${hiddenCls}`;
+                const rowInlineStyle = (isSelected ? pal.selectedStyle : pal.rowStyle) + (isRowHidden ? ' display: none !important;' : '');
+
+                let dividerRowHtml = '';
+                if (isNewCanalLine) {
+                    const lInfo = lineSummaryByKey.get(curLineKey) || { canalName: row.canalName || '-', subCanalName: row.subCanalName || '-', minSta: 0, maxSta: 0, rowCount: 1, secSet: new Set(['1']) };
+                    const topSepStyle = (rIdx > 0 ? 'border-top: 2px solid rgba(14, 116, 144, 0.35);' : '') + (isLineFilteredOut ? ' display: none !important;' : '');
+                    const safeLineKeyAttr = String(curLineKey).replace(/"/g, '&quot;');
+                    dividerRowHtml = `
+                        <tr class="canal-line-divider-row select-none border-b border-cyan-500/40${isLineFilteredOut ? ' ew-row-hidden' : ''}" style="${topSepStyle}">
+                            <td colspan="${totalAllCols}" class="py-1.5 px-3 text-left text-xs font-bold ew-canal-line-header-cell">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <button type="button" class="ew-line-collapse-btn" data-collapse-line="${safeLineKeyAttr}" onclick="toggleEarthworkCanalLineCollapse(this.getAttribute('data-collapse-line'))" title="${isLineCollapsed ? 'ขยายข้อมูลสายนี้ (+)' : 'ย่อข้อมูลสายนี้ (-)'}">${isLineCollapsed ? '+' : '-'}</button>
+                                    <span class="ew-badge ew-badge-cyan">สายคูส่งน้ำที่ ${currentLineOrder}</span>
+                                    <span>คลองส่งน้ำ: <strong class="text-slate-900">${lInfo.canalName}</strong></span>
+                                    <span class="text-slate-400">•</span>
+                                    <span>คูส่งน้ำ: <strong class="text-emerald-700">${lInfo.subCanalName}</strong></span>
+                                    <span class="text-slate-400">•</span>
+                                    <span class="text-slate-600 font-mono text-[11px]">กม. ${formatMetersToStation(lInfo.minSta)} – ${formatMetersToStation(lInfo.maxSta)} (${lInfo.secSet.size} ช่วงคูส่งน้ำ • ${lInfo.rowCount} แถว)</span>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }
+
+                // คอลัมน์ลำดับ: เรียงลำดับ 1, 2, 3... แยกตามแต่ละสายคูส่งน้ำ
+                let cellsHtml = `<td class="py-1 px-1.5 text-center font-bold text-slate-700 border-r border-slate-800 sticky left-0 bg-slate-900/95 z-10 ${pal.leftBorderCls}">${currentLineRowSeq}</td>`;
+
+                INPUT_COLUMNS.forEach((col, cIdx) => {
+                    const isHidden = hiddenColumnKeys.has(col.key);
+                    const hideStyle = isHidden ? 'style="display:none;"' : '';
+
+                    let displayVal = row[col.key];
+                    const isNglCol = (col.key === 'nglStart' || col.key === 'nglEnd');
+                    if (col.type === 'station') {
+                        displayVal = formatMetersToStation(parseStationToMeters(row[col.key]));
+                    } else if (isNglCol) {
+                        displayVal = formatNglCellValue(row[col.key]);
+                    } else if (col.type === 'number' && displayVal !== undefined && displayVal !== '') {
+                        displayVal = Number(displayVal).toFixed(col.decimals);
+                    }
+
+                    // ทุกช่องอยู่ในสถานะล็อก ยกเว้นแถวที่ผู้ใช้กดเพิ่มเอง (row.isUserAdded) แก้ไขได้เฉพาะ กม.สิ้นสุด (staEnd)
+                    const isCellEditable = (row.isUserAdded === true && col.key === 'staEnd');
+                    const readonlyAttr = isCellEditable ? '' : 'readonly tabindex="-1"';
+                    const lockStateCls = isCellEditable ? 'ew-cell-editable' : 'ew-cell-locked';
+
+                    let cellTextCls = 'text-slate-800 font-medium';
+                    let alignCls = 'text-right font-mono';
+                    if (col.key === 'sectionNo') {
+                        alignCls = 'text-center font-mono font-bold';
+                        cellTextCls = pal.secInputCls;
+                    } else if (isNglCol && isMissingNglValue(row[col.key])) {
+                        alignCls = 'text-center font-mono font-bold';
+                        cellTextCls = 'text-amber-600';
+                    } else if (col.type === 'text') {
+                        alignCls = 'text-left';
+                    } else if (col.type === 'station') {
+                        alignCls = 'text-center';
+                        if (col.key === 'staStart') {
+                            const stStyle = getSingleStationVisualStyle(row, true);
+                            cellTextCls = stStyle.inputCls;
+                        } else {
+                            cellTextCls = 'text-cyan-700 font-mono font-bold';
+                        }
+                    }
+
+                    const strVal = String(displayVal ?? '');
+                    const charCount = Math.max(3, strVal.length);
+                    const inputWidthRem = col.key === 'remark'
+                        ? Math.max(5.5, charCount * 0.52 + 0.8)
+                        : (col.type === 'text' ? Math.max(3.2, charCount * 0.56 + 0.8) : Math.max(3.0, charCount * 0.54 + 0.7));
+
+                    if (col.key === 'remark') {
+                        cellsHtml += `
+                            <td ${hideStyle} class="p-0.5 border-r border-slate-800/80">
+                                <div class="flex items-center gap-1 min-w-0">
+                                    <span class="px-1 py-0.5 rounded text-[10px] font-semibold shrink-0 ${theme.badgeCls}">${theme.badgeLabel}</span>
+                                    <input
+                                        type="text"
+                                        ${readonlyAttr}
+                                        data-row="${rIdx}"
+                                        data-col="${cIdx}"
+                                        data-key="${col.key}"
+                                        data-type="${col.type}"
+                                        data-decimals="${col.decimals || 0}"
+                                        value="${strVal}"
+                                        style="width:${inputWidthRem.toFixed(2)}rem;"
+                                        class="table-cell-input ${lockStateCls} px-1 py-0.5 text-xs ${alignCls} ${cellTextCls} rounded"
+                                    >
+                                </div>
+                            </td>
+                        `;
+                    } else {
+                        cellsHtml += `
+                            <td ${hideStyle} class="p-0.5 border-r border-slate-800/80">
+                                <input
+                                    type="text"
+                                    ${readonlyAttr}
+                                    data-row="${rIdx}"
+                                    data-col="${cIdx}"
+                                    data-key="${col.key}"
+                                    data-type="${col.type}"
+                                    data-decimals="${col.decimals || 0}"
+                                    value="${strVal}"
+                                    style="width:${inputWidthRem.toFixed(2)}rem;"
+                                    class="table-cell-input ${lockStateCls} px-1 py-0.5 text-xs ${alignCls} ${cellTextCls} rounded"
+                                >
+                            </td>
+                        `;
+                    }
+                });
+
+                if (visibleNodeNums.length > 0) {
+                    visibleNodeNums.forEach(n => {
+                        const coordStr1 = formatNodeCoordCellText(ev.secStart, n, selectedCategoryFilter);
+                        cellsHtml += `<td data-node-coord="start-${n}-${rIdx}" class="py-1 px-1.5 text-center font-mono text-[11px] ${coordStr1 === '-' ? 'text-slate-400' : 'text-cyan-700'} border-r border-slate-800/60 bg-cyan-950/15">${coordStr1}</td>`;
+                    });
+                    visibleNodeNums.forEach(n => {
+                        const coordStr2 = formatNodeCoordCellText(ev.secEnd, n, selectedCategoryFilter);
+                        cellsHtml += `<td data-node-coord="end-${n}-${rIdx}" class="py-1 px-1.5 text-center font-mono text-[11px] ${coordStr2 === '-' ? 'text-slate-400' : 'text-amber-700'} border-r border-slate-800/60 bg-amber-950/15">${coordStr2}</td>`;
+                    });
+                }
+
+                visibleCats.forEach(cat => {
+                    const c = ev.calcByCat[cat.key];
+                    cellsHtml += `
+                        <td data-calc="${cat.key}-a1-${rIdx}" class="py-1 px-1.5 text-right font-mono text-cyan-700 border-r border-slate-800/60 bg-slate-900/30">${c.a1.toFixed(3)}</td>
+                        <td data-calc="${cat.key}-a2-${rIdx}" class="py-1 px-1.5 text-right font-mono text-amber-700 border-r border-slate-800/60 bg-slate-900/30">${c.a2.toFixed(3)}</td>
+                        <td data-calc="${cat.key}-L-${rIdx}" class="py-1 px-1.5 text-right font-mono text-slate-700 border-r border-slate-800/60 bg-slate-900/30">${c.L.toFixed(2)}</td>
+                        <td data-calc="${cat.key}-vol-${rIdx}" class="py-1 px-2 text-right font-mono font-bold ${cat.color} border-r border-slate-700/80 bg-slate-900/60">${c.vol.toFixed(3)}</td>
+                    `;
+                });
+
+                // คอลัมน์ "เพิ่มแถว" (อยู่หน้าคอลัมน์ลบแถว): แถวสุดท้ายของแต่ละสายไม่ใส่ปุ่ม +
+                const addRowBtnHtml = !isLastRowOfCanalLine
+                    ? `<button type="button" data-add-row="${rIdx}" onclick="addEarthworkRowBelow(${rIdx})" class="ew-row-action-btn ew-row-add-btn" title="เพิ่มแถวใต้แถวนี้">+</button>`
+                    : '';
+                cellsHtml += `<td class="py-0.5 px-1.5 text-center border-r border-slate-800/60">${addRowBtnHtml}</td>`;
+
+                // คอลัมน์ "ลบแถว": แถวที่ได้จากส่วนถอดแบบห้ามลบและไม่ต้องแสดงปุ่มลบ (แสดงเฉพาะแถวที่ผู้ใช้เพิ่มเอง row.isUserAdded)
+                const delRowBtnHtml = row.isUserAdded === true
+                    ? `<button type="button" data-del-row="${rIdx}" onclick="deleteEarthworkUserRow(${rIdx})" class="ew-row-action-btn ew-row-del-btn" title="ลบแถวที่เพิ่มมานี้">-</button>`
+                    : '';
+                cellsHtml += `<td class="py-0.5 px-1.5 text-center">${delRowBtnHtml}</td>`;
+
+                return `${dividerRowHtml}<tr data-row-tr="${rIdx}" data-top-border-cls="${topBorderCls}" class="${rowBgClass}" style="${rowInlineStyle}">${cellsHtml}</tr>`;
+            }).join('');
         }
-
-        // Calculation Result Columns: Always visible per Category filter
-        visibleCats.forEach(cat => {
-            const c = ev.calcByCat[cat.key];
-            cellsHtml += `
-                <td data-calc="${cat.key}-a1-${rIdx}" class="py-1.5 px-2 text-right font-mono text-cyan-300/90 border-r border-slate-800/60 bg-slate-900/30">${c.a1.toFixed(3)}</td>
-                <td data-calc="${cat.key}-a2-${rIdx}" class="py-1.5 px-2 text-right font-mono text-amber-300/90 border-r border-slate-800/60 bg-slate-900/30">${c.a2.toFixed(3)}</td>
-                <td data-calc="${cat.key}-L-${rIdx}" class="py-1.5 px-2 text-right font-mono text-slate-300 border-r border-slate-800/60 bg-slate-900/30">${c.L.toFixed(2)}</td>
-                <td data-calc="${cat.key}-vol-${rIdx}" class="py-1.5 px-2.5 text-right font-mono font-bold ${cat.color} border-r border-slate-700/80 bg-slate-900/60">${c.vol.toFixed(3)}</td>
-            `;
-        });
-
-        cellsHtml += `
-            <td class="py-1 px-2 text-center">
-                <button data-del-row="${rIdx}" class="text-slate-500 hover:text-rose-400 transition px-1" title="ลบแถวนี้">✕</button>
-            </td>
-        `;
-
-        return `${dividerRowHtml}<tr data-row-tr="${rIdx}" data-top-border-cls="${topBorderCls}" class="${rowBgClass}" style="${rowInlineStyle}">${cellsHtml}</tr>`;
-    }).join('');
     }
 
-    // Footer Row: Colspan adjusted dynamically for hidden columns & node coordinate columns
     let footHtml = `<tr class="text-xs">`;
-    footHtml += `<td colspan="${totalLeadingCols}" class="py-2 px-3 text-right text-slate-300 border-r border-slate-700">รวมทั้งสิ้น (${boqRows.length} ช่วง กม. | ระยะทางรวม L = <span id="footTotalL" class="text-emerald-400 font-mono">${totalLengthL.toFixed(2)}</span> m):</td>`;
+    footHtml += `<td colspan="${totalLeadingCols}" class="py-1.5 px-3 text-right text-slate-700 border-r border-slate-700">รวมทั้งสิ้น (${visibleRowCountForFooter} ช่วง กม. | ระยะทางรวม L = <span id="footTotalL" class="text-emerald-700 font-mono">${totalLengthL.toFixed(2)}</span> m):</td>`;
     visibleCats.forEach(cat => {
         footHtml += `
-            <td colspan="3" class="py-2 px-2 text-right text-[11px] text-slate-400 border-r border-slate-800">รวม ${cat.shortLabel}:</td>
-            <td id="footTotal-${cat.key}" class="py-2 px-2.5 text-right font-mono font-bold ${cat.color} border-r border-slate-700">${totalsByCat[cat.key].toFixed(3)}</td>
+            <td colspan="3" class="py-1.5 px-1.5 text-right text-[11px] text-slate-600 border-r border-slate-800">รวม ${cat.shortLabel}:</td>
+            <td id="footTotal-${cat.key}" class="py-1.5 px-2 text-right font-mono font-bold ${cat.color} border-r border-slate-700">${totalsByCat[cat.key].toFixed(3)}</td>
         `;
     });
-    footHtml += `<td></td></tr>`;
-    tfoot.innerHTML = footHtml;
+    footHtml += `<td></td><td></td></tr>`;
+    if (tfoot) tfoot.innerHTML = footHtml;
 
     attachTableEvents();
     updateComparisonView(false);
@@ -8386,8 +9355,6 @@ function renderBoqTable() {
     updateColVisibilityButtonBadge();
     updateNodeCoordsToggleBtnUI();
     if (typeof syncWorkCategoryToggleButtonsUI === 'function') syncWorkCategoryToggleButtonsUI();
-    // รอบ 60: อัปเดตตัวเลือกสายคูส่งน้ำในดรอปลิด
-    updateCanalLineFilterOptions();
 }
 
 function refreshRowCalculationsInDOM(rIdx) {
@@ -8453,10 +9420,11 @@ function refreshRowCalculationsInDOM(rIdx) {
 
 function attachTableEvents() {
     const tbody = document.getElementById('boqTableBody');
+    if (!tbody) return;
 
     tbody.querySelectorAll('tr[data-row-tr]').forEach(tr => {
         tr.addEventListener('click', (e) => {
-            if (e.target.closest('button[data-del-row]')) return;
+            if (e.target.closest('button')) return;
             const rIdx = parseInt(tr.getAttribute('data-row-tr'), 10);
             if (!isNaN(rIdx) && rIdx !== selectedRowIndex) {
                 selectedRowIndex = rIdx;
@@ -8465,218 +9433,23 @@ function attachTableEvents() {
         });
     });
 
-    tbody.querySelectorAll('button[data-del-row]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const rIdx = parseInt(btn.getAttribute('data-del-row'), 10);
-            pushUndoSnapshot(`ลบแถวที่ ${rIdx + 1}`);
-            boqRows.splice(rIdx, 1);
-            masterBoqRows = cloneBoqRows(boqRows);
-            if (selectedRowIndex >= boqRows.length) {
-                selectedRowIndex = Math.max(0, boqRows.length - 1);
-            }
-            renderBoqTable();
-        });
-    });
-
-    tbody.querySelectorAll('input.table-cell-input').forEach(inp => {
+    tbody.querySelectorAll('input.ew-cell-editable').forEach(inp => {
         inp.addEventListener('focus', () => {
             const rIdx = parseInt(inp.getAttribute('data-row'), 10);
-            const key = inp.getAttribute('data-key') || '';
-            pendingCellEditSnapshot = createWorkspaceSnapshot(`แก้ไขช่อง ${key} แถวที่ ${rIdx + 1}`);
-            pendingCellEditKey = `${rIdx}_${key}`;
-            pendingCellEditBeforeVal = inp.value;
             if (!isNaN(rIdx) && rIdx !== selectedRowIndex) {
                 selectedRowIndex = rIdx;
                 updateComparisonView(true);
             }
-            inp.select();
+            if (typeof inp.select === 'function') inp.select();
         });
-
-        inp.addEventListener('input', () => {
+        inp.addEventListener('change', () => {
             const rIdx = parseInt(inp.getAttribute('data-row'), 10);
-            const key = inp.getAttribute('data-key');
-            const type = inp.getAttribute('data-type');
-            const row = boqRows[rIdx];
-            if (!row) return;
-
-            const prevLineKey = makeCanalLineKey(row.canalName, row.subCanalName);
-            const prevStaStart = row.staStart;
-            const prevStaEnd = row.staEnd;
-
-            if (type === 'text') {
-                row[key] = inp.value;
-                if (key === 'canalName' || key === 'subCanalName') {
-                    recalculateSectionNumbersByCanalLine(boqRows);
-                    boqRows.forEach((rObj, idx) => {
-                        const secInp = tbody.querySelector(`input[data-row="${idx}"][data-key="sectionNo"]`);
-                        if (secInp && document.activeElement !== secInp) {
-                            secInp.value = rObj.sectionNo;
-                        }
-                    });
-                }
-                if (key === 'type') {
-                    const matchedSpec = findUShapeTypeSpec(inp.value);
-                    if (matchedSpec) {
-                        row.B = roundLen(matchedSpec.B);
-                        row.H = roundLen(matchedSpec.H);
-                        row.tblStart = roundElev(roundElev(row.blStart) + row.H);
-                        row.tblEnd = roundElev(roundElev(row.blEnd) + row.H);
-                        const bInp = tbody.querySelector(`input[data-row="${rIdx}"][data-key="B"]`);
-                        const hInp = tbody.querySelector(`input[data-row="${rIdx}"][data-key="H"]`);
-                        const tblStartInp = tbody.querySelector(`input[data-row="${rIdx}"][data-key="tblStart"]`);
-                        const tblEndInp = tbody.querySelector(`input[data-row="${rIdx}"][data-key="tblEnd"]`);
-                        if (bInp && document.activeElement !== bInp) bInp.value = row.B.toFixed(2);
-                        if (hInp && document.activeElement !== hInp) hInp.value = row.H.toFixed(2);
-                        if (tblStartInp && document.activeElement !== tblStartInp) tblStartInp.value = row.tblStart.toFixed(2);
-                        if (tblEndInp && document.activeElement !== tblEndInp) tblEndInp.value = row.tblEnd.toFixed(2);
-                    }
-                }
-            } else if (type === 'station') {
-                row[key] = parseStationToMeters(inp.value);
-            } else if (type === 'number') {
-                const rawTrim = String(inp.value || '').trim();
-                if ((key === 'nglStart' || key === 'nglEnd') && (rawTrim === '' || rawTrim === '-')) {
-                    row[key] = '-';
-                } else {
-                    const num = parseFloat(rawTrim);
-                    if (!isNaN(num)) {
-                    const isElevKey = ['nglStart', 'blStart', 'tblStart', 'nglEnd', 'blEnd', 'tblEnd'].includes(key);
-                    row[key] = isElevKey ? roundElev(num) : roundLen(num);
-                    if (key === 'blStart' || key === 'H') {
-                        row.tblStart = roundElev(roundElev(row.blStart) + roundLen(row.H));
-                        const tblInp = tbody.querySelector(`input[data-row="${rIdx}"][data-key="tblStart"]`);
-                        if (tblInp && document.activeElement !== tblInp) {
-                            tblInp.value = row.tblStart.toFixed(2);
-                        }
-                    }
-                    if (key === 'blEnd' || key === 'H') {
-                        row.tblEnd = roundElev(roundElev(row.blEnd) + roundLen(row.H));
-                        const tblEndInp = tbody.querySelector(`input[data-row="${rIdx}"][data-key="tblEnd"]`);
-                        if (tblEndInp && document.activeElement !== tblEndInp) {
-                            tblEndInp.value = row.tblEnd.toFixed(2);
-                        }
-                    }
-                }
-                }
-            }
-            if (pendingCellEditSnapshot && pendingCellEditKey === `${rIdx}_${key}` && inp.value !== pendingCellEditBeforeVal) {
-                undoStack.push(pendingCellEditSnapshot);
-                if (undoStack.length > MAX_UNDO_STEPS) undoStack.shift();
-                redoStack = [];
-                pendingCellEditSnapshot = null;
-                updateUndoRedoButtonsUI();
-            }
-            syncVisibleRowEditToMaster(row, prevLineKey, prevStaStart, prevStaEnd);
-            if (key === 'remark') {
-                ensureAllRowsHaveParsedTags(masterBoqRows);
-                syncSplitButtonsStatusUI();
-            }
-            refreshRowCalculationsInDOM(rIdx);
+            updateEarthworkUserRowStaEnd(rIdx, inp.value);
         });
-
-        inp.addEventListener('blur', () => {
-            const rIdx = parseInt(inp.getAttribute('data-row'), 10);
-            const key = inp.getAttribute('data-key');
-            const type = inp.getAttribute('data-type');
-            const decimals = parseInt(inp.getAttribute('data-decimals'), 10) || 0;
-            const row = boqRows[rIdx];
-            if (!row) return;
-
-            if (type === 'station') {
-                const m = parseStationToMeters(inp.value);
-                row[key] = m;
-                inp.value = formatMetersToStation(m);
-            } else if (type === 'number') {
-                const rawTrim = String(inp.value || '').trim();
-                const isNglCol = (key === 'nglStart' || key === 'nglEnd');
-                const isElevKey = ['nglStart', 'blStart', 'tblStart', 'nglEnd', 'blEnd', 'tblEnd'].includes(key);
-                if (isNglCol && (rawTrim === '' || rawTrim === '-' || isNaN(parseFloat(rawTrim)))) {
-                    row[key] = '-';
-                    inp.value = '-';
-                } else {
-                    const num = parseFloat(rawTrim);
-                    if (!isNaN(num)) {
-                        let rounded = isElevKey ? roundElev(num) : roundLen(num);
-                        if (key === 'tblStart') {
-                            rounded = roundElev(roundElev(row.blStart) + roundLen(row.H));
-                        } else if (key === 'tblEnd') {
-                            rounded = roundElev(roundElev(row.blEnd) + roundLen(row.H));
-                        }
-                        row[key] = rounded;
-                        inp.value = rounded.toFixed(decimals);
-                    } else if (isNglCol && isMissingNglValue(row[key])) {
-                        row[key] = '-';
-                        inp.value = '-';
-                    } else {
-                        const fallback = isElevKey ? roundElev(row[key] || 0) : roundLen(row[key] || 0);
-                        inp.value = fallback.toFixed(decimals);
-                    }
-                }
-            }
-            if (key === 'canalName' || key === 'subCanalName' || key === 'sectionNo') {
-                renderBoqTable();
-                return;
-            }
-            refreshRowCalculationsInDOM(rIdx);
-        });
-
         inp.addEventListener('keydown', (e) => {
-            const rIdx = parseInt(inp.getAttribute('data-row'), 10);
-            const cIdx = parseInt(inp.getAttribute('data-col'), 10);
-            const maxRow = boqRows.length - 1;
-            const maxCol = INPUT_COLUMNS.length - 1;
-
-            if (e.key === 'ArrowUp') {
+            if (e.key === 'Enter') {
                 e.preventDefault();
-                const targetRow = Math.max(0, rIdx - 1);
-                const nextEl = tbody.querySelector(`input[data-row="${targetRow}"][data-col="${cIdx}"]`);
-                if (nextEl) {
-                    nextEl.focus();
-                    nextEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-                }
-            } else if (e.key === 'ArrowDown' || e.key === 'Enter') {
-                e.preventDefault();
-                const targetRow = Math.min(maxRow, rIdx + 1);
-                const nextEl = tbody.querySelector(`input[data-row="${targetRow}"][data-col="${cIdx}"]`);
-                if (nextEl) {
-                    nextEl.focus();
-                    nextEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-                }
-            } else if (e.key === 'ArrowLeft') {
-                const isAtStart = inp.selectionStart === 0 && inp.selectionEnd === 0;
-                const isAllSelected = inp.selectionStart === 0 && inp.selectionEnd === inp.value.length;
-                if (isAtStart || isAllSelected) {
-                    e.preventDefault();
-                    let targetCol = cIdx - 1;
-                    while (targetCol >= 0 && hiddenColumnKeys.has(INPUT_COLUMNS[targetCol]?.key)) {
-                        targetCol--;
-                    }
-                    if (targetCol >= 0) {
-                        const nextEl = tbody.querySelector(`input[data-row="${rIdx}"][data-col="${targetCol}"]`);
-                        if (nextEl) {
-                            nextEl.focus();
-                            nextEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-                        }
-                    }
-                }
-            } else if (e.key === 'ArrowRight') {
-                const isAtEnd = inp.selectionStart === inp.value.length && inp.selectionEnd === inp.value.length;
-                const isAllSelected = inp.selectionStart === 0 && inp.selectionEnd === inp.value.length;
-                if (isAtEnd || isAllSelected) {
-                    e.preventDefault();
-                    let targetCol = cIdx + 1;
-                    while (targetCol <= maxCol && hiddenColumnKeys.has(INPUT_COLUMNS[targetCol]?.key)) {
-                        targetCol++;
-                    }
-                    if (targetCol <= maxCol) {
-                        const nextEl = tbody.querySelector(`input[data-row="${rIdx}"][data-col="${targetCol}"]`);
-                        if (nextEl) {
-                            nextEl.focus();
-                            nextEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-                        }
-                    }
-                }
+                inp.blur();
             }
         });
     });
@@ -9170,6 +9943,7 @@ function deleteNglStationsForSpecificLines(targetLineKeysArray) {
                 tb: Number(pRef.tb),
                 ts: Number(pRef.ts),
                 dt: Number(pRef.dt),
+                isUserAdded: endTagsArr.includes('userAdded'),
                 staStartTags: startTagsArr,
                 staEndTags: endTagsArr,
                 remark: buildRemarkFromTags(startTagsArr, endTagsArr, lastSubdivideStepLabel),
@@ -9303,27 +10077,19 @@ document.getElementById('btnConfirmDeleteNglSelectedLines')?.addEventListener('c
 document.getElementById('btnInsertDigitizerStations')?.addEventListener('click', () => {
     const lines = getUniqueCanalLinesFromBoqTable();
     const counts = getSplitStationCountsInMaster();
+    const targetKeys = (selectedEarthworkCanalFilter && selectedEarthworkCanalFilter !== 'ALL')
+        ? [selectedEarthworkCanalFilter]
+        : lines.map(l => l.lineKey);
 
-    // กรณีในตารางมีหลายสาย ให้ขึ้นหน้าต่างให้เลือกแทรกหรือลบของสายไหน
-    if (lines.length > 1) {
-        if (counts.ngl === 0 && !hasAnyNglDataInSystem()) {
-            openNoNglDataAlertModal();
-            return;
-        }
-        openNglInsertDeleteLineModal(counts.ngl > 0 ? 'delete' : 'insert');
-        return;
-    }
-
-    // กรณีตารางมีสายเดียว
     if (counts.ngl > 0) {
-        deleteNglStationsForSpecificLines([lines[0]?.lineKey || '__BLANK__']);
+        deleteNglStationsForSpecificLines(targetKeys.length ? targetKeys : ['__BLANK__']);
         return;
     }
     if (!hasAnyNglDataInSystem()) {
         openNoNglDataAlertModal();
         return;
     }
-    insertNglStationsForSpecificLines([lines[0]?.lineKey || '__BLANK__']);
+    insertNglStationsForSpecificLines(targetKeys.length ? targetKeys : ['__BLANK__']);
 });
 
 document.getElementById('btnDeleteDigitizerStationsByLine')?.addEventListener('click', () => {
@@ -9456,21 +10222,42 @@ document.getElementById('btnRemoveZeroAll')?.addEventListener('click', () => {
 // ============================================================================
 // 6. EXCEL (.XLSX) & CSV UPLOAD / DOWNLOAD HANDLERS
 // ============================================================================
+const fileStatusModal = document.getElementById('fileStatusModal');
 const fileStatusBanner = document.getElementById('fileStatusBanner');
 const fileStatusText = document.getElementById('fileStatusText');
-document.getElementById('btnCloseBanner')?.addEventListener('click', () => {
-    fileStatusBanner.classList.add('hidden');
+function closeFileStatusModal() {
+    if (fileStatusModal && fileStatusModal.classList) fileStatusModal.classList.add('hidden');
+    if (fileStatusBanner && fileStatusBanner.classList) fileStatusBanner.classList.add('hidden');
+}
+document.getElementById('btnCloseBanner')?.addEventListener('click', closeFileStatusModal);
+document.getElementById('btnConfirmStatusModal')?.addEventListener('click', closeFileStatusModal);
+fileStatusModal?.addEventListener('click', (e) => {
+    if (e.target && e.target.id === 'fileStatusModal') closeFileStatusModal();
 });
 
 function showBanner(msg, tone = 'emerald') {
-    fileStatusText.innerText = msg;
-    fileStatusBanner.classList.remove('hidden', 'bg-emerald-950/80', 'border-emerald-600/60', 'text-emerald-200', 'bg-amber-950/80', 'border-amber-600/60', 'text-amber-200', 'bg-cyan-950/80', 'border-cyan-600/60', 'text-cyan-200');
-    if (tone === 'amber') {
-        fileStatusBanner.classList.add('bg-amber-950/80', 'border-amber-600/60', 'text-amber-200');
-    } else if (tone === 'cyan') {
-        fileStatusBanner.classList.add('bg-cyan-950/80', 'border-cyan-600/60', 'text-cyan-200');
-    } else {
-        fileStatusBanner.classList.add('bg-emerald-950/80', 'border-emerald-600/60', 'text-emerald-200');
+    if (fileStatusText) fileStatusText.innerText = msg;
+    if (fileStatusBanner && fileStatusBanner.classList) {
+        fileStatusBanner.classList.remove('hidden', 'bg-emerald-950/80', 'border-emerald-600/60', 'text-emerald-200', 'bg-amber-950/80', 'border-amber-600/60', 'text-amber-200', 'bg-cyan-950/80', 'border-cyan-600/60', 'text-cyan-200');
+        if (tone === 'amber') {
+            fileStatusBanner.classList.add('bg-amber-950/80', 'border-amber-600/60', 'text-amber-200');
+        } else if (tone === 'cyan') {
+            fileStatusBanner.classList.add('bg-cyan-950/80', 'border-cyan-600/60', 'text-cyan-200');
+        } else {
+            fileStatusBanner.classList.add('bg-emerald-950/80', 'border-emerald-600/60', 'text-emerald-200');
+        }
+    }
+    const iconEl = document.getElementById('fileStatusModalIcon');
+    if (iconEl) {
+        iconEl.textContent = tone === 'amber' ? '!' : '✓';
+        iconEl.className = tone === 'amber'
+            ? 'w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-700 flex items-center justify-center font-bold text-base shrink-0'
+            : (tone === 'cyan'
+                ? 'w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/50 text-cyan-700 flex items-center justify-center font-bold text-base shrink-0'
+                : 'w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-700 flex items-center justify-center font-bold text-base shrink-0');
+    }
+    if (fileStatusModal && fileStatusModal.classList) {
+        fileStatusModal.classList.remove('hidden');
     }
 }
 
@@ -10118,6 +10905,7 @@ function initEarthworkSection3() {
   if (_earthworkInitialized) return;
   _earthworkInitialized = true;
   try {
+    initEarthworkPart3Model();
     syncCmpToggleButtonsUI();
     renderColumnVisibilityCheckboxes();
     syncEarthworkFromTakeoff(false);
@@ -10127,6 +10915,7 @@ function initEarthworkSection3() {
         if (qtyPage && qtyPage.style && qtyPage.style.display !== 'none') {
           resizeComparisonCanvases(false);
           drawLongitudinalProfile();
+          resizeCanvas();
         }
       });
     }
